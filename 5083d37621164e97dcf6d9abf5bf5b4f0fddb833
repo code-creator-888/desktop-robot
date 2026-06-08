@@ -1,0 +1,23 @@
+README.md
+  cb5e7b9e1dc0e521 1-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.22",
+  "base_commit_sha": "5083d37621164e97dcf6d9abf5bf5b4f0fddb833",
+  "prompts": {
+    "cb5e7b9e1dc0e521": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3fb6ef8-fab6-49b1-a97a-02e18861a020",
+        "model": "kimi-k2.6"
+      },
+      "human_author": "liuhw8",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 106,
+      "overriden_lines": 0
+    }
+  }
+}
