@@ -239,14 +239,12 @@ html, body {
 
 .session-list-item {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   padding: 8px 12px;
   cursor: pointer;
   border-bottom: 1px solid #f5f5f5;
-}
-
-.session-list-item:last-child {
-  border-bottom: none;
+  gap: 8px;
 }
 
 .session-list-item:hover {
@@ -255,6 +253,29 @@ html, body {
 
 .session-list-item.active {
   background: #eef4ff;
+}
+
+.session-item-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.session-item-delete {
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.session-item-delete:hover {
+  background: #ff4d4f;
+  color: #fff;
 }
 
 .session-item-date {

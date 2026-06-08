@@ -329,6 +329,28 @@ function renderSessionBar() {
   bar.appendChild(actions);
 }
 
+function deleteSession(id) {
+  let sessions = loadSessions();
+  sessions = sessions.filter(s => s.id !== id);
+  saveSessions(sessions);
+
+  if (currentSessionId === id) {
+    if (sessions.length > 0) {
+      switchToSession(sessions[0].id);
+    } else {
+      startNewSession();
+      chatMessagesList = [];
+    }
+    renderChatMessages();
+  }
+
+  renderSessionBar();
+  const bar = document.getElementById('chat-session-bar');
+  if (sessions.length > 0) {
+    toggleSessionList(bar, sessions);
+  }
+}
+
 function toggleSessionList(bar, sessions) {
   const existing = document.getElementById('session-list-dropdown');
   if (existing) { existing.remove(); return; }
@@ -339,14 +361,29 @@ function toggleSessionList(bar, sessions) {
   sessions.forEach(s => {
     const item = document.createElement('div');
     item.className = 'session-list-item' + (s.id === currentSessionId ? ' active' : '');
+
+    const info = document.createElement('div');
+    info.className = 'session-item-info';
     const d = new Date(s.id).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    item.innerHTML = `<span class="session-item-date">${d}</span><span class="session-item-preview">${s.preview || '空对话'}</span>`;
-    item.addEventListener('click', () => {
+    info.innerHTML = `<span class="session-item-date">${d}</span><span class="session-item-preview">${s.preview || '空对话'}</span>`;
+    info.addEventListener('click', () => {
       switchToSession(s.id);
       closeSessionList();
       renderSessionBar();
       renderChatMessages();
     });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'session-item-delete';
+    delBtn.title = '删除';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteSession(s.id);
+    });
+
+    item.appendChild(info);
+    item.appendChild(delBtn);
     dropdown.appendChild(item);
   });
 
