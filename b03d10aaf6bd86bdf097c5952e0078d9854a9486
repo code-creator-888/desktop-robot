@@ -1,0 +1,38 @@
+.gitignore
+  20d51e314ff84b16 1-21
+package.json
+  20d51e314ff84b16 2,4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.22",
+  "base_commit_sha": "b03d10aaf6bd86bdf097c5952e0078d9854a9486",
+  "prompts": {
+    "20d51e314ff84b16": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "686b79ab-f36a-4127-862a-0bc6d574c723",
+        "model": "kimi-k2.6"
+      },
+      "human_author": "liuhw8",
+      "messages": [],
+      "total_additions": 23,
+      "total_deletions": 2,
+      "accepted_lines": 23,
+      "overriden_lines": 0
+    },
+    "cb5e7b9e1dc0e521": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3fb6ef8-fab6-49b1-a97a-02e18861a020",
+        "model": "kimi-k2.6"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 106,
+      "total_deletions": 0,
+      "accepted_lines": 106,
+      "overriden_lines": 0
+    }
+  }
+}
