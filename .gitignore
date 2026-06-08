@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Local data
+ports.txt
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build output
+/dist
+/build
+/out
+
+# IDE
+.vscode/
+.idea/

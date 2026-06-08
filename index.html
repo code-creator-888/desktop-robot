@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="pet-container">
+    <img id="pet" src="assets/robot.svg" alt="机器人" draggable="false">
+    <div id="speech-bubble" class="hidden"></div>
+    <div id="chat-panel" class="hidden">
+      <div id="chat-header">
+        <span>💬 聊天</span>
+        <button id="chat-close">✕</button>
+      </div>
+      <div id="chat-session-bar"></div>
+      <div id="chat-messages"></div>
+      <div id="chat-input-area">
+        <input type="text" id="chat-input" placeholder="跟宠物说点什么...">
+        <button id="chat-send">发送</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 系统监控 -->
+  <div id="system-monitor" class="hidden">
+    <div class="monitor-backdrop"></div>
+    <div class="monitor-card monitor-card-wide">
+      <div class="monitor-header">
+        <span>📊 系统监控</span>
+        <div class="monitor-header-right">
+          <select id="system-monitor-interval" class="monitor-interval-select">
+            <option value="5000">5秒</option>
+            <option value="10000">10秒</option>
+            <option value="30000">30秒</option>
+            <option value="60000">60秒</option>
+          </select>
+          <button id="system-monitor-close">✕</button>
+        </div>
+      </div>
+      <div class="monitor-tabs">
+        <button class="monitor-tab active" data-tab="overview">概览</button>
+        <button class="monitor-tab" data-tab="cpu-proc">CPU 进程</button>
+        <button class="monitor-tab" data-tab="mem-proc">内存进程</button>
+      </div>
+      <!-- 概览 tab -->
+      <div class="monitor-tab-content active" id="tab-overview">
+        <div class="stat-row"><span class="stat-label">CPU 使用率</span><span class="stat-value" id="stat-cpu">-</span></div>
+        <div class="stat-row"><span class="stat-label">CPU 型号</span><span class="stat-value stat-small" id="stat-cpu-model">-</span></div>
+        <div class="stat-row"><span class="stat-label">内存用量</span><span class="stat-value" id="stat-mem">-</span></div>
+        <div class="stat-row"><span class="stat-label">内存占用</span><span class="stat-value" id="stat-mem-percent">-</span></div>
+        <div class="stat-row"><span class="stat-label">负载均值</span><span class="stat-value" id="stat-load">-</span></div>
+        <div class="stat-row"><span class="stat-label">系统运行</span><span class="stat-value" id="stat-uptime">-</span></div>
+        <div class="stat-row"><span class="stat-label">网络 ↓</span><span class="stat-value" id="stat-net-in">-</span></div>
+        <div class="stat-row"><span class="stat-label">网络 ↑</span><span class="stat-value" id="stat-net-out">-</span></div>
+        <div class="stat-row"><span class="stat-label">磁盘读</span><span class="stat-value" id="stat-disk-read">-</span></div>
+        <div class="stat-row"><span class="stat-label">磁盘写</span><span class="stat-value" id="stat-disk-write">-</span></div>
+      </div>
+      <!-- CPU进程 tab -->
+      <div class="monitor-tab-content" id="tab-cpu-proc">
+        <div class="proc-table-header">
+          <span class="proc-col-cmd">进程</span>
+          <span class="proc-col-cpu">CPU</span>
+          <span class="proc-col-mem">内存</span>
+          <span class="proc-col-pid">PID</span>
+        </div>
+        <div id="proc-cpu-list" class="proc-list"></div>
+      </div>
+      <!-- 内存进程 tab -->
+      <div class="monitor-tab-content" id="tab-mem-proc">
+        <div class="proc-table-header">
+          <span class="proc-col-cmd">进程</span>
+          <span class="proc-col-cpu">CPU</span>
+          <span class="proc-col-mem">内存</span>
+          <span class="proc-col-pid">PID</span>
+        </div>
+        <div id="proc-mem-list" class="proc-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 端口监控 -->
+  <div id="port-monitor" class="hidden">
+    <div class="monitor-backdrop"></div>
+    <div class="monitor-card monitor-card-wide">
+      <div class="monitor-header">
+        <span>🔌 端口监控</span>
+        <div class="monitor-header-right">
+          <select id="port-monitor-interval" class="monitor-interval-select">
+            <option value="5000">5秒</option>
+            <option value="10000">10秒</option>
+            <option value="30000">30秒</option>
+            <option value="60000">60秒</option>
+          </select>
+          <button id="port-monitor-close">✕</button>
+        </div>
+      </div>
+      <div class="monitor-tabs">
+        <button class="monitor-tab active" data-tab="watched">监控端口</button>
+        <button class="monitor-tab" data-tab="all-ports">所有监听</button>
+      </div>
+      <!-- 监控端口 tab -->
+      <div class="monitor-tab-content active" id="tab-watched">
+        <div id="port-watched-list" class="port-list"></div>
+        <div class="port-add-row">
+          <input type="number" id="port-add-input" placeholder="输入端口号 1-65535" min="1" max="65535">
+          <button id="port-add-btn">添加</button>
+        </div>
+      </div>
+      <!-- 所有监听 tab -->
+      <div class="monitor-tab-content" id="tab-all-ports">
+        <div class="all-ports-summary" id="all-ports-summary"></div>
+        <div class="proc-table-header">
+          <span class="port-col-port">端口</span>
+          <span class="port-col-cmd">进程</span>
+          <span class="port-col-addr">协议</span>
+          <span class="port-col-user">用户</span>
+          <span class="port-col-pid">PID</span>
+        </div>
+        <div id="all-ports-list" class="proc-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-modal" class="hidden">
+    <div class="settings-backdrop"></div>
+    <div class="settings-card">
+      <h3>AI 设置</h3>
+      <label>API Base URL</label>
+      <input type="text" id="setting-base-url" placeholder="https://api.openai.com/v1">
+      <label>模型</label>
+      <input type="text" id="setting-model" placeholder="gpt-4o-mini">
+      <label>Provider</label>
+      <select id="setting-provider">
+        <option value="openai">OpenAI 兼容</option>
+        <option value="anthropic">Anthropic</option>
+      </select>
+      <label>ANTHROPIC_API_KEY</label>
+      <input type="password" id="setting-api-key" placeholder="sk-ant-...">
+      <label>宠物名字</label>
+      <input type="text" id="setting-pet-name" placeholder="小机（留空使用默认）">
+      <label>系统提示词</label>
+      <textarea id="setting-system-prompt" placeholder="留空使用默认提示词" rows="4"></textarea>
+      <div class="settings-actions">
+        <button id="setting-save">保存</button>
+        <button id="setting-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>

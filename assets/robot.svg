@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E8F4F8"/>
+      <stop offset="100%" stop-color="#D0E8F0"/>
+    </linearGradient>
+    <linearGradient id="xpGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00D4FF"/>
+      <stop offset="100%" stop-color="#00B8D4"/>
+    </linearGradient>
+    <linearGradient id="eyeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#00B8D4"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 天线 -->
+  <line x1="50" y1="14" x2="50" y2="6" stroke="#00B8D4" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="50" cy="4" r="3.5" fill="#00E5FF" filter="url(#glow)"/>
+
+  <!-- 头部 -->
+  <rect x="18" y="16" width="64" height="46" rx="14" fill="url(#bodyGrad)" stroke="#B0D4E3" stroke-width="1.5"/>
+
+  <!-- 面罩 -->
+  <rect x="24" y="22" width="52" height="32" rx="10" fill="#1A2A3A" stroke="#00B8D4" stroke-width="1"/>
+
+  <!-- 眼睛 -->
+  <ellipse cx="36" cy="36" rx="9" ry="7" fill="#0D1B2A"/>
+  <ellipse cx="36" cy="36" rx="5" ry="4" fill="url(#eyeGrad)" filter="url(#glow)"/>
+  <circle cx="38" cy="34" r="1.8" fill="white"/>
+  <ellipse cx="64" cy="36" rx="9" ry="7" fill="#0D1B2A"/>
+  <ellipse cx="64" cy="36" rx="5" ry="4" fill="url(#eyeGrad)" filter="url(#glow)"/>
+  <circle cx="66" cy="34" r="1.8" fill="white"/>
+
+  <!-- 嘴巴 -->
+  <rect x="44" y="48" width="12" height="2.5" rx="1.2" fill="#00B8D4" filter="url(#glow)"/>
+
+  <!-- 身体 -->
+  <rect x="26" y="60" width="48" height="32" rx="10" fill="url(#bodyGrad)" stroke="#B0D4E3" stroke-width="1.5"/>
+
+  <!-- 小鹏 X Logo -->
+  <g transform="translate(50, 76)" filter="url(#glow)">
+    <path d="M-10,-6 L-3,0 L-10,6" fill="none" stroke="url(#xpGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10,-6 L3,0 L10,6" fill="none" stroke="url(#xpGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="-6" y1="0" x2="6" y2="0" stroke="url(#xpGrad)" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- 胸口指示灯 -->
+  <circle cx="38" cy="70" r="2" fill="#00E5FF" filter="url(#glow)"/>
+  <circle cx="62" cy="70" r="2" fill="#00E5FF" filter="url(#glow)"/>
+
+  <!-- 手臂 -->
+  <rect x="8" y="66" width="14" height="8" rx="4" fill="#C0D8E8" stroke="#A0C4D8" stroke-width="1"/>
+  <rect x="78" y="66" width="14" height="8" rx="4" fill="#C0D8E8" stroke="#A0C4D8" stroke-width="1"/>
+</svg>

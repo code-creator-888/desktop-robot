@@ -1,0 +1,16 @@
+{
+  "name": "desktop-robot",
+  "version": "1.0.0",
+  "description": "桌面机器人",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  },
+  "dependencies": {
+    "2": "^3.0.0",
+    "uiohook-napi": "^1.5.5"
+  }
+}

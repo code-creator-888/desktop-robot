@@ -1,0 +1,18 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore),
+  showContextMenu: (x, y) => ipcRenderer.send('show-context-menu', { x, y }),
+  onMenuAction: (callback) => ipcRenderer.on('menu-action', (event, action) => callback(action)),
+  quit: () => ipcRenderer.send('quit-app'),
+  chat: (config) => ipcRenderer.invoke('chat', config),
+  getEnvApiKey: () => ipcRenderer.invoke('get-env-api-key'),
+  getEnvConfig: () => ipcRenderer.invoke('get-env-config'),
+  getSystemStats: () => ipcRenderer.invoke('get-system-stats'),
+  getPortStats: () => ipcRenderer.invoke('get-port-stats'),
+  killProcess: (pid) => ipcRenderer.invoke('kill-process', pid),
+  addPort: (port) => ipcRenderer.invoke('add-port', port),
+  removePort: (port) => ipcRenderer.invoke('remove-port', port),
+  getPortList: () => ipcRenderer.invoke('get-port-list'),
+  setPetBounds: (bounds) => ipcRenderer.send('set-pet-bounds', bounds)
+});
