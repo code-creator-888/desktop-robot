@@ -7,6 +7,7 @@ const os = require('os');
 const fs = require('fs');
 const { exec, execFile } = require('child_process');
 const util = require('util');
+const { dedupeResults, normalizeWebSearchPayload } = require('./lib/web-fallback');
 const execAsync = util.promisify(exec);
 const execFileAsync = util.promisify(execFile);
 const { uIOhook } = require('uiohook-napi');
@@ -41,15 +42,40 @@ function createWindow() {
 let petBounds = null; // { x, y, width, height } in screen coords
 let lastMouseX = 0, lastMouseY = 0;
 
-function buildPetMenu() {
-  return Menu.buildFromTemplate([
+async function buildPetMenuAsync() {
+  let modelItems = [];
+  let activeId = '';
+  if (win) {
+    try {
+      const raw = await win.webContents.executeJavaScript('localStorage.getItem("modelConfigs")');
+      if (raw) {
+        const configs = JSON.parse(raw);
+        activeId = configs.activeId || '';
+        modelItems = (configs.models || []).map(m => ({
+          label: m.name + (m.id === activeId ? ' ✓' : ''),
+          click: () => win && win.webContents.send('menu-action', 'switch-model:' + m.id)
+        }));
+      }
+    } catch {}
+  }
+
+  const items = [
     { label: '💬 聊天', click: () => win && win.webContents.send('menu-action', 'chat') },
+  ];
+
+  if (modelItems.length > 0) {
+    items.push({ label: '🔄 切换模型', submenu: modelItems });
+  }
+
+  items.push(
     { label: '📊 系统监控', click: () => win && win.webContents.send('menu-action', 'system-monitor') },
     { label: '🔌 端口监控', click: () => win && win.webContents.send('menu-action', 'port-monitor') },
     { label: '⚙️ 设置', click: () => win && win.webContents.send('menu-action', 'settings') },
     { type: 'separator' },
     { label: '🚪 退出', click: () => app.quit() }
-  ]);
+  );
+
+  return Menu.buildFromTemplate(items);
 }
 
 app.whenReady().then(() => {
@@ -74,14 +100,15 @@ app.whenReady().then(() => {
     lastMouseY = e.y;
   });
 
-  uIOhook.on('mouseup', (e) => {
+  uIOhook.on('mouseup', async (e) => {
     if (e.button !== 2) return;
     if (!petBounds || !win) return;
     const { x, y, width, height } = petBounds;
     if (e.x >= x && e.x <= x + width && e.y >= y && e.y <= y + height) {
       win.webContents.send('set-ignore-mouse-events', false);
       win.setIgnoreMouseEvents(false);
-      buildPetMenu().popup({ window: win, x: e.x - win.getBounds().x, y: e.y - win.getBounds().y });
+      const menu = await buildPetMenuAsync();
+      menu.popup({ window: win, x: e.x - win.getBounds().x, y: e.y - win.getBounds().y });
     }
   });
 
@@ -96,33 +123,9 @@ ipcMain.on('set-pet-bounds', (event, bounds) => {
   petBounds = bounds;
 });
 
-ipcMain.on('show-context-menu', (event, { x, y }) => {
+ipcMain.on('show-context-menu', async (event, { x, y }) => {
   if (!win) return;
-
-  const menu = Menu.buildFromTemplate([
-    {
-      label: '💬 聊天',
-      click: () => win.webContents.send('menu-action', 'chat')
-    },
-    {
-      label: '📊 系统监控',
-      click: () => win.webContents.send('menu-action', 'system-monitor')
-    },
-    {
-      label: '🔌 端口监控',
-      click: () => win.webContents.send('menu-action', 'port-monitor')
-    },
-    {
-      label: '⚙️ 设置',
-      click: () => win.webContents.send('menu-action', 'settings')
-    },
-    { type: 'separator' },
-    {
-      label: '🚪 退出',
-      click: () => app.quit()
-    }
-  ]);
-
+  const menu = await buildPetMenuAsync();
   menu.popup({ window: win, x, y });
 });
 
@@ -141,7 +144,8 @@ ipcMain.handle('chat', async (event, { baseUrl, model, apiKey, messages, provide
       const systemMsg = messages.find(m => m.role === 'system');
       const userMessages = messages.filter(m => m.role !== 'system');
 
-      url = new URL(normalizedBaseUrl + '/messages');
+      const anthropicBase = normalizedBaseUrl.replace(/\/v1\/?$/, '');
+      url = new URL(anthropicBase + '/v1/messages');
       const body = {
         model,
         max_tokens: 4096,
@@ -152,15 +156,15 @@ ipcMain.handle('chat', async (event, { baseUrl, model, apiKey, messages, provide
       }
       postData = JSON.stringify(body);
 
-      options = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'Content-Length': Buffer.byteLength(postData)
-        }
+      const headers = {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'Content-Length': Buffer.byteLength(postData)
       };
+      if (anthropicBase.includes('anthropic.com')) {
+        headers['anthropic-version'] = '2023-06-01';
+      }
+      options = { method: 'POST', headers };
     } else {
       url = new URL(normalizedBaseUrl + '/chat/completions');
       postData = JSON.stringify({
@@ -187,14 +191,20 @@ ipcMain.handle('chat', async (event, { baseUrl, model, apiKey, messages, provide
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            let errMsg;
+            try {
+              const json = JSON.parse(data);
+              errMsg = json.error?.message || json.error?.msg || json.error?.type || JSON.stringify(json).slice(0, 300);
+            } catch {
+              errMsg = data.slice(0, 300) || '(empty response)';
+            }
+            reject(new Error(`HTTP ${res.statusCode}: ${errMsg}`));
+            return;
+          }
+
           try {
             const json = JSON.parse(data);
-
-            if (res.statusCode < 200 || res.statusCode >= 300) {
-              const errMsg = json.error?.message || json.error?.type || JSON.stringify(json).slice(0, 200);
-              reject(new Error(`HTTP ${res.statusCode}: ${errMsg}`));
-              return;
-            }
 
             if (isAnthropic) {
               const textBlock = json.content?.find?.(c => c.type === 'text');
@@ -214,7 +224,7 @@ ipcMain.handle('chat', async (event, { baseUrl, model, apiKey, messages, provide
               }
             }
           } catch (e) {
-            reject(new Error(`HTTP ${res.statusCode} parse error: ${data.slice(0, 200)}`));
+            reject(new Error(`Parse error: ${data.slice(0, 200)}`));
           }
         });
       });
@@ -230,6 +240,47 @@ ipcMain.handle('chat', async (event, { baseUrl, model, apiKey, messages, provide
     });
 
     return { success: true, content };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('web-search', async (event, payload) => {
+  const normalizedPayload = normalizeWebSearchPayload(payload);
+  if (normalizedPayload.error) {
+    return { success: false, error: normalizedPayload.error };
+  }
+  const { query, topK } = normalizedPayload;
+
+  try {
+    const url = new URL('https://duckduckgo.com/html/?q=' + encodeURIComponent(query));
+    const html = await new Promise((resolve, reject) => {
+      const req = https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(data);
+            return;
+          }
+          reject(new Error(`HTTP ${res.statusCode}`));
+        });
+      });
+      req.setTimeout(12000, () => req.destroy(new Error('Search timeout')));
+      req.on('error', reject);
+    });
+
+    const blocks = [
+      ...html.matchAll(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g)
+    ];
+    const raw = blocks.map((m) => ({
+      url: m[1].replace(/&amp;/g, '&'),
+      title: m[2].replace(/<[^>]+>/g, '').trim(),
+      snippet: m[3].replace(/<[^>]+>/g, '').trim()
+    }));
+    const results = dedupeResults(raw, topK);
+    if (results.length === 0) return { success: false, error: 'No search results' };
+    return { success: true, results };
   } catch (err) {
     return { success: false, error: err.message };
   }

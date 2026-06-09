@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuAction: (callback) => ipcRenderer.on('menu-action', (event, action) => callback(action)),
   quit: () => ipcRenderer.send('quit-app'),
   chat: (config) => ipcRenderer.invoke('chat', config),
+  webSearch: (payload) => ipcRenderer.invoke('web-search', payload),
   getEnvApiKey: () => ipcRenderer.invoke('get-env-api-key'),
   getEnvConfig: () => ipcRenderer.invoke('get-env-config'),
   getSystemStats: () => ipcRenderer.invoke('get-system-stats'),

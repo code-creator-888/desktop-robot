@@ -9,6 +9,7 @@ html, body {
   overflow: hidden;
   background: transparent;
   user-select: none;
+  pointer-events: none;
 }
 
 #pet-container {
@@ -16,6 +17,7 @@ html, body {
   bottom: 20px;
   left: 50%;
   cursor: grab;
+  pointer-events: auto;
 }
 
 #pet-container.dragging {
@@ -450,6 +452,165 @@ html, body {
   border-color: #007aff;
 }
 
+.settings-card-wide {
+  width: 400px;
+}
+
+#model-list {
+  max-height: 180px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.model-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 8px;
+  font-size: 13px;
+  border-bottom: 1px solid #f5f5f5;
+  cursor: default;
+}
+
+.model-item:last-child {
+  border-bottom: none;
+}
+
+.model-item.active {
+  background: #eef4ff;
+}
+
+.model-item-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ccc;
+  flex-shrink: 0;
+}
+
+.model-item.active .model-item-dot {
+  background: #007aff;
+}
+
+.model-item-name {
+  flex: 1;
+  font-weight: 500;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-item-detail {
+  font-size: 11px;
+  color: #999;
+  flex-shrink: 0;
+}
+
+.model-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.model-item-btn {
+  border: none;
+  background: none;
+  color: #999;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.model-item-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.model-item-btn.delete:hover {
+  background: #ff4d4f;
+  color: #fff;
+}
+
+.model-add-btn {
+  width: 100%;
+  border: 1px dashed #ccc;
+  background: none;
+  color: #666;
+  border-radius: 8px;
+  padding: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.model-add-btn:hover {
+  border-color: #007aff;
+  color: #007aff;
+}
+
+.model-edit-divider {
+  height: 1px;
+  background: #eee;
+  margin: 8px 0;
+}
+
+.model-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.model-edit-actions button {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#edit-model-save {
+  background: #007aff;
+  color: white;
+}
+
+#edit-model-save:hover {
+  background: #0051d5;
+}
+
+#edit-model-cancel {
+  background: #f2f2f7;
+  color: #333;
+}
+
+#edit-model-cancel:hover {
+  background: #e5e5ea;
+}
+
+#model-edit-form.hidden {
+  display: none;
+}
+
+.settings-divider {
+  height: 1px;
+  background: #eee;
+  margin: 12px 0;
+}
+
+#chat-model-indicator {
+  font-size: 10px;
+  font-weight: 400;
+  color: #999;
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
 .settings-card textarea {
   width: 100%;
   box-sizing: border-box;
@@ -466,6 +627,25 @@ html, body {
 
 .settings-card textarea:focus {
   border-color: #007aff;
+}
+
+.inline-setting {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 12px !important;
+  color: #666;
+}
+
+.inline-setting input[type="checkbox"] {
+  width: auto;
+  margin: 0 4px 0 0;
+}
+
+.inline-setting input[type="number"] {
+  width: 70px;
+  margin: 0 0 0 auto;
 }
 
 .settings-actions {
@@ -953,4 +1133,3 @@ html, body {
   font-size: 11px;
   flex-shrink: 0;
 }
-

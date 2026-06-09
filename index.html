@@ -11,6 +11,7 @@
     <div id="chat-panel" class="hidden">
       <div id="chat-header">
         <span>💬 聊天</span>
+        <span id="chat-model-indicator"></span>
         <button id="chat-close">✕</button>
       </div>
       <div id="chat-session-bar"></div>
@@ -124,23 +125,44 @@
 
   <div id="settings-modal" class="hidden">
     <div class="settings-backdrop"></div>
-    <div class="settings-card">
+    <div class="settings-card settings-card-wide">
       <h3>AI 设置</h3>
-      <label>API Base URL</label>
-      <input type="text" id="setting-base-url" placeholder="https://api.openai.com/v1">
-      <label>模型</label>
-      <input type="text" id="setting-model" placeholder="gpt-4o-mini">
-      <label>Provider</label>
-      <select id="setting-provider">
-        <option value="openai">OpenAI 兼容</option>
-        <option value="anthropic">Anthropic</option>
-      </select>
-      <label>ANTHROPIC_API_KEY</label>
-      <input type="password" id="setting-api-key" placeholder="sk-ant-...">
+      <label>模型列表</label>
+      <div id="model-list"></div>
+      <button id="model-add-btn" class="model-add-btn">+ 添加模型</button>
+      <div id="model-edit-form" class="hidden">
+        <div class="model-edit-divider"></div>
+        <label>显示名称</label>
+        <input type="text" id="edit-model-name" placeholder="如: GPT-4o">
+        <label>Provider</label>
+        <select id="edit-model-provider">
+          <option value="openai">OpenAI 兼容</option>
+          <option value="anthropic">Anthropic</option>
+        </select>
+        <label>模型 ID</label>
+        <input type="text" id="edit-model-id" placeholder="如: gpt-4o, claude-sonnet-4-20250514">
+        <label>API Base URL</label>
+        <input type="text" id="edit-model-baseurl" placeholder="https://api.openai.com/v1">
+        <label>API Key</label>
+        <input type="password" id="edit-model-apikey" placeholder="sk-...">
+        <div class="model-edit-actions">
+          <button id="edit-model-save">保存</button>
+          <button id="edit-model-cancel">取消</button>
+        </div>
+      </div>
+      <div class="settings-divider"></div>
       <label>宠物名字</label>
       <input type="text" id="setting-pet-name" placeholder="小机（留空使用默认）">
       <label>系统提示词</label>
-      <textarea id="setting-system-prompt" placeholder="留空使用默认提示词" rows="4"></textarea>
+      <textarea id="setting-system-prompt" placeholder="留空使用默认提示词" rows="3"></textarea>
+      <label class="inline-setting">
+        <input type="checkbox" id="setting-auto-web-fallback" checked>
+        失败时自动联网搜索
+      </label>
+      <label class="inline-setting" for="setting-web-search-topk">
+        联网结果数量
+        <input type="number" id="setting-web-search-topk" min="3" max="8" value="5">
+      </label>
       <div class="settings-actions">
         <button id="setting-save">保存</button>
         <button id="setting-cancel">取消</button>

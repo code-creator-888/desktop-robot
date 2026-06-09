@@ -19,6 +19,7 @@
 
 - 🐾 **Cute Robot Pet** — A floating desktop robot that stays on top of all windows.
 - 💬 **AI Chat** — Built-in chat panel powered by OpenAI-compatible / Anthropic APIs.
+- 🌐 **Web Fallback** — If primary model call fails, automatically search the web and summarize with citations.
 - 📊 **System Monitor** — Real-time CPU, memory, network, disk, and process monitoring.
 - 🔌 **Port Monitor** — Watch specific ports and view all listening services.
 - 🖱️ **Interactive** — Click the robot to open chat, right-click for system menu.
@@ -66,6 +67,7 @@ MIT
 
 - 🐾 **可爱机器人宠物** — 悬浮在所有窗口之上的桌面机器人。
 - 💬 **AI 对话** — 支持 OpenAI 兼容 / Anthropic API 的内置聊天面板。
+- 🌐 **联网回退** — 主模型调用失败时，自动网页搜索并生成带引用的总结回复。
 - 📊 **系统监控** — 实时查看 CPU、内存、网络、磁盘及进程信息。
 - 🔌 **端口监控** — 监控指定端口，查看当前所有监听服务。
 - 🖱️ **交互式操作** — 点击机器人打开聊天，右键呼出系统菜单。

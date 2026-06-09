@@ -24,12 +24,21 @@ const chatInput = document.getElementById('chat-input');
 const chatSend = document.getElementById('chat-send');
 const chatClose = document.getElementById('chat-close');
 const settingsModal = document.getElementById('settings-modal');
-const settingBaseUrl = document.getElementById('setting-base-url');
-const settingModel = document.getElementById('setting-model');
-const settingApiKey = document.getElementById('setting-api-key');
-const settingProvider = document.getElementById('setting-provider');
 const settingPetName = document.getElementById('setting-pet-name');
 const settingSystemPrompt = document.getElementById('setting-system-prompt');
+const settingAutoWebFallback = document.getElementById('setting-auto-web-fallback');
+const settingWebSearchTopK = document.getElementById('setting-web-search-topk');
+const modelListEl = document.getElementById('model-list');
+const modelAddBtn = document.getElementById('model-add-btn');
+const modelEditForm = document.getElementById('model-edit-form');
+const editModelName = document.getElementById('edit-model-name');
+const editModelProvider = document.getElementById('edit-model-provider');
+const editModelId = document.getElementById('edit-model-id');
+const editModelBaseUrl = document.getElementById('edit-model-baseurl');
+const editModelApiKey = document.getElementById('edit-model-apikey');
+const editModelSave = document.getElementById('edit-model-save');
+const editModelCancel = document.getElementById('edit-model-cancel');
+const chatModelIndicator = document.getElementById('chat-model-indicator');
 const settingSave = document.getElementById('setting-save');
 const settingCancel = document.getElementById('setting-cancel');
 const systemMonitor = document.getElementById('system-monitor');
@@ -60,6 +69,15 @@ let envConfig = { baseUrl: '', model: '', apiKey: '' };
 const MAX_SESSIONS = 10;
 const SESSIONS_KEY = 'chatSessions';
 const LAST_SESSION_KEY = 'lastSessionId';
+const DEFAULT_AUTO_WEB_FALLBACK = true;
+const DEFAULT_WEB_SEARCH_TOPK = 5;
+
+function clampWebSearchTopK(value) {
+  const n = Number.isFinite(Number(value)) ? Number(value) : DEFAULT_WEB_SEARCH_TOPK;
+  if (n < 3) return 3;
+  if (n > 8) return 8;
+  return Math.floor(n);
+}
 
 function loadSessions() {
   try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; } catch { return []; }
@@ -166,64 +184,256 @@ function showSpeech(text, duration) {
   }, duration || 2000);
 }
 
-// --- Settings ---
-function loadSettings() {
+// --- Model config management ---
+const MODEL_CONFIGS_KEY = 'modelConfigs';
+
+function loadModelConfigs() {
+  try {
+    const raw = localStorage.getItem(MODEL_CONFIGS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+}
+
+function saveModelConfigs(configs) {
+  localStorage.setItem(MODEL_CONFIGS_KEY, JSON.stringify(configs));
+}
+
+function migrateOldSettings() {
+  if (loadModelConfigs()) return;
   const saved = localStorage.getItem('aiSettings');
-  if (saved) {
-    const settings = JSON.parse(saved);
-    settingBaseUrl.value = settings.baseUrl || envConfig.baseUrl;
-    settingModel.value = settings.model || envConfig.model;
-    settingProvider.value = settings.provider || (envConfig.baseUrl.includes('anthropic') ? 'anthropic' : 'openai');
-    settingApiKey.value = settings.apiKey || envConfig.apiKey;
-    settingPetName.value = settings.petName || '';
-    settingSystemPrompt.value = settings.systemPrompt || '';
-  } else {
-    settingBaseUrl.value = envConfig.baseUrl;
-    settingModel.value = envConfig.model;
-    settingProvider.value = envConfig.baseUrl.includes('anthropic') ? 'anthropic' : 'openai';
-    settingApiKey.value = envConfig.apiKey;
-    settingPetName.value = '';
-    settingSystemPrompt.value = '';
+  if (!saved) return;
+  try {
+    const old = JSON.parse(saved);
+    if (old.baseUrl || old.model || old.apiKey) {
+      const provider = old.provider || (old.baseUrl && old.baseUrl.includes('anthropic') ? 'anthropic' : 'openai');
+      const id = Date.now().toString();
+      saveModelConfigs({
+        models: [{
+          id,
+          name: old.model || '默认模型',
+          provider,
+          model: old.model || '',
+          baseUrl: old.baseUrl || '',
+          apiKey: old.apiKey || ''
+        }],
+        activeId: id
+      });
+    }
+  } catch {}
+}
+migrateOldSettings();
+
+function getModelConfigs() {
+  let configs = loadModelConfigs();
+  if (!configs) {
+    const id = Date.now().toString();
+    configs = { models: [], activeId: '' };
+  }
+  return configs;
+}
+
+function getActiveModel() {
+  const configs = getModelConfigs();
+  return configs.models.find(m => m.id === configs.activeId) || null;
+}
+
+function switchModel(id) {
+  const configs = getModelConfigs();
+  if (configs.models.some(m => m.id === id)) {
+    configs.activeId = id;
+    saveModelConfigs(configs);
+    updateModelIndicator();
   }
 }
 
-function getSettings() {
+let editingModelId = null;
+
+function renderModelList() {
+  const configs = getModelConfigs();
+  modelListEl.innerHTML = '';
+  if (configs.models.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'model-item';
+    empty.innerHTML = '<span style="color:#999;font-size:12px">暂无模型，点击下方添加</span>';
+    modelListEl.appendChild(empty);
+    return;
+  }
+  configs.models.forEach(m => {
+    const item = document.createElement('div');
+    item.className = 'model-item' + (m.id === configs.activeId ? ' active' : '');
+
+    const dot = document.createElement('span');
+    dot.className = 'model-item-dot';
+
+    const name = document.createElement('span');
+    name.className = 'model-item-name';
+    name.textContent = m.name;
+
+    const detail = document.createElement('span');
+    detail.className = 'model-item-detail';
+    detail.textContent = m.model;
+
+    const actions = document.createElement('div');
+    actions.className = 'model-item-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'model-item-btn';
+    editBtn.textContent = '编辑';
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openModelEditForm(m.id);
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'model-item-btn delete';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteModel(m.id);
+    });
+
+    actions.appendChild(editBtn);
+    actions.appendChild(delBtn);
+
+    item.appendChild(dot);
+    item.appendChild(name);
+    item.appendChild(detail);
+    item.appendChild(actions);
+
+    item.addEventListener('click', () => {
+      switchModel(m.id);
+      renderModelList();
+    });
+
+    modelListEl.appendChild(item);
+  });
+}
+
+function openModelEditForm(id) {
+  editingModelId = id || null;
+  if (id) {
+    const configs = getModelConfigs();
+    const m = configs.models.find(x => x.id === id);
+    if (!m) return;
+    editModelName.value = m.name;
+    editModelProvider.value = m.provider || 'openai';
+    editModelId.value = m.model || '';
+    editModelBaseUrl.value = m.baseUrl || '';
+    editModelApiKey.value = m.apiKey || '';
+  } else {
+    editModelName.value = '';
+    editModelProvider.value = 'openai';
+    editModelId.value = '';
+    editModelBaseUrl.value = '';
+    editModelApiKey.value = '';
+  }
+  modelEditForm.classList.remove('hidden');
+  editModelName.focus();
+}
+
+function closeModelEditForm() {
+  editingModelId = null;
+  modelEditForm.classList.add('hidden');
+}
+
+function saveModelEdit() {
+  const name = editModelName.value.trim();
+  const model = editModelId.value.trim();
+  if (!name || !model) return;
+
+  const configs = getModelConfigs();
+  if (editingModelId) {
+    const m = configs.models.find(x => x.id === editingModelId);
+    if (m) {
+      m.name = name;
+      m.provider = editModelProvider.value;
+      m.model = model;
+      m.baseUrl = editModelBaseUrl.value.trim();
+      m.apiKey = editModelApiKey.value.trim();
+    }
+  } else {
+    const id = Date.now().toString();
+    configs.models.push({
+      id,
+      name,
+      provider: editModelProvider.value,
+      model,
+      baseUrl: editModelBaseUrl.value.trim(),
+      apiKey: editModelApiKey.value.trim()
+    });
+    if (!configs.activeId) configs.activeId = id;
+  }
+  saveModelConfigs(configs);
+  closeModelEditForm();
+  renderModelList();
+  updateModelIndicator();
+}
+
+function deleteModel(id) {
+  const configs = getModelConfigs();
+  configs.models = configs.models.filter(m => m.id !== id);
+  if (configs.activeId === id) {
+    configs.activeId = configs.models.length > 0 ? configs.models[0].id : '';
+  }
+  saveModelConfigs(configs);
+  renderModelList();
+  updateModelIndicator();
+}
+
+function updateModelIndicator() {
+  const m = getActiveModel();
+  chatModelIndicator.textContent = m ? m.name : '';
+}
+
+modelAddBtn.addEventListener('click', () => openModelEditForm(null));
+editModelSave.addEventListener('click', saveModelEdit);
+editModelCancel.addEventListener('click', closeModelEditForm);
+
+// --- Settings ---
+function loadSettings() {
   const saved = localStorage.getItem('aiSettings');
+  const settings = saved ? JSON.parse(saved) : {};
+  const autoWebFallback = settings.autoWebFallback !== false;
+  const webSearchTopK = clampWebSearchTopK(settings.webSearchTopK);
+
   if (saved) {
-    const settings = JSON.parse(saved);
-    if (!settings.provider) {
-      settings.provider = envConfig.baseUrl.includes('anthropic') ? 'anthropic' : 'openai';
-    }
-    if (!settings.baseUrl && envConfig.baseUrl) {
-      settings.baseUrl = envConfig.baseUrl;
-    }
-    if (!settings.model && envConfig.model) {
-      settings.model = envConfig.model;
-    }
-    if (!settings.apiKey && envConfig.apiKey) {
-      settings.apiKey = envConfig.apiKey;
-    }
-    return settings;
+    settingPetName.value = settings.petName || '';
+    settingSystemPrompt.value = settings.systemPrompt || '';
+  } else {
+    settingPetName.value = '';
+    settingSystemPrompt.value = '';
   }
-  if (envConfig.apiKey || envConfig.baseUrl) {
-    return {
-      baseUrl: envConfig.baseUrl,
-      model: envConfig.model,
-      provider: envConfig.baseUrl.includes('anthropic') ? 'anthropic' : 'openai',
-      apiKey: envConfig.apiKey
-    };
-  }
-  return null;
+
+  settingAutoWebFallback.checked = autoWebFallback;
+  settingWebSearchTopK.value = String(webSearchTopK);
+  renderModelList();
+  closeModelEditForm();
+}
+
+function getSettings() {
+  const model = getActiveModel();
+  if (!model || !model.baseUrl || !model.model || !model.apiKey) return null;
+  const saved = localStorage.getItem('aiSettings');
+  const extra = saved ? JSON.parse(saved) : {};
+  return {
+    baseUrl: model.baseUrl,
+    model: model.model,
+    apiKey: model.apiKey,
+    provider: model.provider || 'openai',
+    petName: extra.petName || '',
+    systemPrompt: extra.systemPrompt || '',
+    autoWebFallback: extra.autoWebFallback !== false,
+    webSearchTopK: clampWebSearchTopK(extra.webSearchTopK)
+  };
 }
 
 function saveSettings() {
   const settings = {
-    baseUrl: settingBaseUrl.value.trim(),
-    model: settingModel.value.trim(),
-    provider: settingProvider.value,
-    apiKey: settingApiKey.value.trim(),
     petName: settingPetName.value.trim(),
-    systemPrompt: settingSystemPrompt.value.trim()
+    systemPrompt: settingSystemPrompt.value.trim(),
+    autoWebFallback: !!settingAutoWebFallback.checked,
+    webSearchTopK: clampWebSearchTopK(settingWebSearchTopK.value)
   };
   localStorage.setItem('aiSettings', JSON.stringify(settings));
   closeSettings();
@@ -233,14 +443,14 @@ function openSettings() {
   isSettingsOpen = true;
   loadSettings();
   settingsModal.classList.remove('hidden');
-  window.electronAPI.setIgnoreMouseEvents(false);
+  setMouseCapture(true);
 }
 
 function closeSettings() {
   isSettingsOpen = false;
   settingsModal.classList.add('hidden');
-  if (!isDragging && !isChatOpen) {
-    window.electronAPI.setIgnoreMouseEvents(true);
+  if (!isDragging) {
+    setMouseCapture(false);
   }
 }
 
@@ -248,7 +458,6 @@ function closeSettings() {
 function openChat() {
   isChatOpen = true;
   chatPanel.classList.remove('hidden');
-  window.electronAPI.setIgnoreMouseEvents(false);
   initSession();
   renderSessionBar();
   renderChatMessages();
@@ -260,7 +469,7 @@ function closeChat() {
   isChatOpen = false;
   chatPanel.classList.add('hidden');
   if (!isDragging && !isSettingsOpen) {
-    window.electronAPI.setIgnoreMouseEvents(true);
+    setMouseCapture(false);
   }
 }
 
@@ -420,35 +629,80 @@ async function sendMessage() {
   isThinking = true;
   render();
 
-  const messages = [
-    { role: 'system', content: getSystemPrompt() },
-    ...chatMessagesList.slice(-10)
-  ];
+  try {
+    const messages = [
+      { role: 'system', content: getSystemPrompt() },
+      ...chatMessagesList.slice(-10)
+    ];
 
-  const result = await window.electronAPI.chat({
-    baseUrl: settings.baseUrl,
-    model: settings.model,
-    apiKey: settings.apiKey,
-    provider: settings.provider,
-    messages
-  });
+    const result = await window.electronAPI.chat({
+      baseUrl: settings.baseUrl,
+      model: settings.model,
+      apiKey: settings.apiKey,
+      provider: settings.provider,
+      messages
+    });
 
-  isThinking = false;
+    if (result.success) {
+      chatMessagesList.push({ role: 'assistant', content: result.content });
+      renderChatMessages();
+      if (!isChatOpen) showSpeech(result.content, 4000);
+    } else {
+      if (settings.autoWebFallback) {
+        const searchingMsg = '主回答失败，正在联网搜索并总结...';
+        const searchingIndex = chatMessagesList.length;
+        chatMessagesList.push({ role: 'assistant', content: searchingMsg });
+        renderChatMessages();
 
-  if (result.success) {
-    chatMessagesList.push({ role: 'assistant', content: result.content });
-    renderChatMessages();
-    if (!isChatOpen) showSpeech(result.content, 4000);
-  } else {
-    const errMsg = '出错了：' + result.error;
-    chatMessagesList.push({ role: 'assistant', content: errMsg });
-    renderChatMessages();
-    if (!isChatOpen) showSpeech(errMsg, 3000);
+        const searchResult = await window.electronAPI.webSearch({
+          query: text,
+          topK: settings.webSearchTopK
+        });
+
+        if (searchResult.success) {
+          const evidence = (searchResult.results || []).map((item, index) =>
+            `${index + 1}. ${item.title}\n${item.snippet}\n${item.url}`
+          ).join('\n\n');
+          const summarizeResult = await window.electronAPI.chat({
+            baseUrl: settings.baseUrl,
+            model: settings.model,
+            apiKey: settings.apiKey,
+            provider: settings.provider,
+            messages: [
+              { role: 'system', content: '你是检索总结助手。请根据证据回答问题，并在结尾附上来源链接。' },
+              { role: 'user', content: `用户问题：${text}\n\n证据：\n${evidence}\n\n请给出简洁结论并列出来源链接。` }
+            ]
+          });
+
+          if (summarizeResult.success) {
+            chatMessagesList[searchingIndex] = { role: 'assistant', content: summarizeResult.content };
+            renderChatMessages();
+            if (!isChatOpen) showSpeech(summarizeResult.content, 4000);
+          } else {
+            const combinedError = `出错了：${result.error}；联网搜索成功，但总结失败：${summarizeResult.error}`;
+            chatMessagesList[searchingIndex] = { role: 'assistant', content: combinedError };
+            renderChatMessages();
+            if (!isChatOpen) showSpeech(combinedError, 3000);
+          }
+        } else {
+          const combinedError = `出错了：${result.error}；联网搜索失败：${searchResult.error}`;
+          chatMessagesList[searchingIndex] = { role: 'assistant', content: combinedError };
+          renderChatMessages();
+          if (!isChatOpen) showSpeech(combinedError, 3000);
+        }
+      } else {
+        const errMsg = '出错了：' + result.error;
+        chatMessagesList.push({ role: 'assistant', content: errMsg });
+        renderChatMessages();
+        if (!isChatOpen) showSpeech(errMsg, 3000);
+      }
+    }
+  } finally {
+    isThinking = false;
+    saveCurrentSession();
+    renderSessionBar();
+    render();
   }
-
-  saveCurrentSession();
-  renderSessionBar();
-  render();
 }
 
 // --- Tab switching helper ---
@@ -501,7 +755,7 @@ function renderProcessList(listId, processes) {
 function openSystemMonitor() {
   isMonitorOpen = true;
   systemMonitor.classList.remove('hidden');
-  window.electronAPI.setIgnoreMouseEvents(false);
+  setMouseCapture(true);
   switchTab(systemMonitor, 'overview');
 
   const saved = localStorage.getItem('systemMonitorInterval');
@@ -529,8 +783,9 @@ function closeSystemMonitor() {
   if (portMonitor.classList.contains('hidden')) {
     isMonitorOpen = false;
   }
-  // Keep mouse events enabled so the pet remains interactive after closing
-  window.electronAPI.setIgnoreMouseEvents(false);
+  if (!isDragging && !isSettingsOpen && !isMonitorOpen) {
+    setMouseCapture(false);
+  }
 }
 
 systemMonitor.querySelectorAll('.monitor-tab').forEach(btn => {
@@ -630,7 +885,7 @@ function renderAllPorts(data) {
 function openPortMonitor() {
   isMonitorOpen = true;
   portMonitor.classList.remove('hidden');
-  window.electronAPI.setIgnoreMouseEvents(false);
+  setMouseCapture(true);
   switchTab(portMonitor, 'watched');
 
   const saved = localStorage.getItem('portMonitorInterval');
@@ -658,8 +913,9 @@ function closePortMonitor() {
   if (systemMonitor.classList.contains('hidden')) {
     isMonitorOpen = false;
   }
-  // Keep mouse events enabled so the pet remains interactive after closing
-  window.electronAPI.setIgnoreMouseEvents(false);
+  if (!isDragging && !isSettingsOpen && !isMonitorOpen) {
+    setMouseCapture(false);
+  }
 }
 
 portMonitor.querySelectorAll('.monitor-tab').forEach(btn => {
@@ -699,7 +955,7 @@ container.addEventListener('mousedown', (e) => {
   dragStartX = e.clientX;
   dragStartY = e.clientY;
   container.classList.add('dragging');
-  window.electronAPI.setIgnoreMouseEvents(false);
+  setMouseCapture(true);
 });
 
 window.addEventListener('mousemove', (e) => {
@@ -722,21 +978,27 @@ window.addEventListener('mouseup', () => {
     behavior = 'idle';
     render();
     reportPetBounds();
-    if (!isChatOpen && !isSettingsOpen && !isMonitorOpen) {
-      window.electronAPI.setIgnoreMouseEvents(true);
+    if (!isSettingsOpen && !isMonitorOpen) {
+      setMouseCapture(false);
     }
   }
 });
 
-// --- Mouse enter/leave for click passthrough ---
-container.addEventListener('mouseenter', () => {
-  window.electronAPI.setIgnoreMouseEvents(false);
-});
+// --- Mouse passthrough via mousemove ---
+let isCapturing = false;
 
-container.addEventListener('mouseleave', () => {
-  if (!isDragging && !isChatOpen && !isSettingsOpen && !isMonitorOpen) {
-    window.electronAPI.setIgnoreMouseEvents(true);
-  }
+function setMouseCapture(capture) {
+  if (capture === isCapturing) return;
+  isCapturing = capture;
+  window.electronAPI.setIgnoreMouseEvents(!capture);
+}
+
+document.addEventListener('mousemove', (e) => {
+  if (isDragging) return;
+  if (isSettingsOpen || isMonitorOpen) return;
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const overContainer = !!(el && el.closest('#pet-container'));
+  setMouseCapture(overContainer);
 });
 
 // --- Context menu (native) ---
@@ -765,6 +1027,12 @@ window.electronAPI.onMenuAction((action) => {
       closePortMonitor();
     } else {
       openPortMonitor();
+    }
+  } else if (typeof action === 'string' && action.startsWith('switch-model:')) {
+    const id = action.slice('switch-model:'.length);
+    switchModel(id);
+    if (isChatOpen) {
+      setMouseCapture(true);
     }
   }
 });
@@ -802,3 +1070,4 @@ settingsModal.querySelector('.settings-backdrop').addEventListener('click', clos
 container.style.left = (window.innerWidth - getPet().size - 20) + 'px';
 render();
 reportPetBounds();
+updateModelIndicator();
