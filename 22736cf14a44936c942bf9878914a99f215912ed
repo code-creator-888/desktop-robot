@@ -1,0 +1,42 @@
+index.html
+  510ebc31832a1abd 14,128,130-153,157
+style.css
+  510ebc31832a1abd 12,20,455-550,552-611
+renderer.js
+  510ebc31832a1abd 29-39,176-381,393-394,398-399,401-409,425,432,451,692,720-722,822,850-852,892,916,921-922,924-935,965-970,1007
+main.js
+  510ebc31832a1abd 44-61,63-69,75-77,102,109-110,125,127,146-147,158-161,163-166,193-204,226
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.22",
+  "base_commit_sha": "22736cf14a44936c942bf9878914a99f215912ed",
+  "prompts": {
+    "510ebc31832a1abd": {
+      "agent_id": {
+        "tool": "qoder",
+        "id": "60110de8-647b-45d4-be1e-daad8300cea8",
+        "model": "qoder-model"
+      },
+      "human_author": "liuhw8",
+      "messages": [],
+      "total_additions": 679,
+      "total_deletions": 566,
+      "accepted_lines": 535,
+      "overriden_lines": 0
+    },
+    "cb5e7b9e1dc0e521": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b3fb6ef8-fab6-49b1-a97a-02e18861a020",
+        "model": "kimi-k2.6"
+      },
+      "human_author": "liuhw8",
+      "messages": [],
+      "total_additions": 65,
+      "total_deletions": 7,
+      "accepted_lines": 65,
+      "overriden_lines": 0
+    }
+  }
+}
