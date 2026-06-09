@@ -173,6 +173,7 @@ function render() {
   if (behavior === 'sleep') petEl.classList.add('sleeping');
   if (behavior === 'eat') petEl.classList.add('eating');
   if (isThinking) petEl.classList.add('thinking');
+  container.classList.toggle('thinking-tech', isThinking);
 }
 
 function showSpeech(text, duration) {
@@ -458,6 +459,7 @@ function closeSettings() {
 function openChat() {
   isChatOpen = true;
   chatPanel.classList.remove('hidden');
+  setMouseCapture(true);
   initSession();
   renderSessionBar();
   renderChatMessages();
@@ -998,7 +1000,8 @@ document.addEventListener('mousemove', (e) => {
   if (isSettingsOpen || isMonitorOpen) return;
   const el = document.elementFromPoint(e.clientX, e.clientY);
   const overContainer = !!(el && el.closest('#pet-container'));
-  setMouseCapture(overContainer);
+  const overChatPanel = !!(el && el.closest('#chat-panel'));
+  setMouseCapture(overContainer || overChatPanel);
 });
 
 // --- Context menu (native) ---
@@ -1033,6 +1036,7 @@ window.electronAPI.onMenuAction((action) => {
     switchModel(id);
     if (isChatOpen) {
       setMouseCapture(true);
+      chatInput.focus();
     }
   }
 });

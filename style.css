@@ -138,6 +138,7 @@ html, body {
   bottom: 70px;
   left: 50%;
   transform: translateX(-50%);
+  z-index: 100;
   width: 280px;
   max-height: 320px;
   background: rgba(255, 255, 255, 0.95);
@@ -1132,4 +1133,152 @@ html, body {
   color: #ccc;
   font-size: 11px;
   flex-shrink: 0;
+}
+
+#tech-prop {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+#pet-container.thinking-tech #tech-prop {
+  opacity: 1;
+}
+
+.tech-laptop {
+  width: 26px;
+  height: 18px;
+  border: 1px solid rgba(87, 198, 255, 0.7);
+  border-radius: 4px 4px 2px 2px;
+  background: rgba(19, 31, 56, 0.85);
+  animation: tech-float 1.4s ease-in-out infinite;
+  overflow: hidden;
+}
+
+.tech-screen {
+  position: relative;
+  width: 18px;
+  height: 8px;
+  margin: 2px auto 0;
+  border-radius: 2px;
+  background: rgba(10, 22, 40, 0.9);
+  border: 1px solid rgba(87, 198, 255, 0.35);
+}
+
+.tech-keyboard {
+  position: relative;
+  width: 20px;
+  height: 3px;
+  margin: 2px auto 0;
+  border-radius: 2px;
+  background: rgba(87, 198, 255, 0.8);
+  animation: tech-typing 0.22s steps(2) infinite;
+}
+
+.tech-key-hit {
+  position: absolute;
+  top: -2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  opacity: 0;
+  background: rgba(190, 245, 255, 0.95);
+  box-shadow: 0 0 5px rgba(130, 229, 255, 0.95);
+}
+
+.tech-key-hit-left {
+  left: 4px;
+}
+
+.tech-key-hit-right {
+  right: 4px;
+}
+
+#pet-container.thinking-tech #tech-prop .tech-key-hit-left {
+  animation: tech-key-hit-left 0.24s ease-in-out infinite;
+}
+
+#pet-container.thinking-tech #tech-prop .tech-key-hit-right {
+  animation: tech-key-hit-right 0.24s ease-in-out infinite;
+}
+
+.tech-cursor {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  width: 2px;
+  height: 5px;
+  border-radius: 1px;
+  background: rgba(145, 230, 255, 1);
+}
+
+#pet-container.thinking-tech #tech-prop .tech-cursor {
+  animation: tech-cursor-blink 0.45s steps(1) infinite;
+}
+
+.tech-scan-line {
+  position: absolute;
+  left: 1px;
+  width: 16px;
+  height: 1px;
+  border-radius: 1px;
+  background: rgba(145, 230, 255, 0.85);
+  opacity: 0.65;
+}
+
+#pet-container.thinking-tech #tech-prop .tech-scan-line {
+  animation: tech-scan-line 0.75s linear infinite;
+}
+
+.tech-glow {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 40px;
+  height: 20px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(87, 198, 255, 0.45), rgba(87, 198, 255, 0));
+  animation: tech-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes tech-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes tech-key-hit-left {
+  0%, 100% { opacity: 0; transform: translateY(0) scale(0.9); }
+  50% { opacity: 1; transform: translateY(1px) scale(1); }
+}
+
+@keyframes tech-key-hit-right {
+  0%, 100% { opacity: 0; transform: translateY(1px) scale(0.9); }
+  50% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes tech-typing {
+  0%, 100% { opacity: 0.5; transform: scaleX(1); }
+  50% { opacity: 1; transform: scaleX(0.85); }
+}
+
+@keyframes tech-cursor-blink {
+  0%, 45% { opacity: 1; }
+  46%, 100% { opacity: 0; }
+}
+
+@keyframes tech-scan-line {
+  0% { top: 1px; opacity: 0.2; }
+  50% { opacity: 0.75; }
+  100% { top: 6px; opacity: 0.2; }
+}
+
+@keyframes tech-glow {
+  0%, 100% { opacity: 0.35; transform: translateX(-50%) scale(0.95); }
+  50% { opacity: 0.8; transform: translateX(-50%) scale(1.05); }
 }
