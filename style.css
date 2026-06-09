@@ -839,6 +839,14 @@ html, body {
   font-size: 12px;
 }
 
+#reminder-rule-type {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  background: #fff;
+}
+
 #reminder-add-btn,
 .reminder-item-actions button {
   border: none;
@@ -895,17 +903,12 @@ html, body {
 .reminder-item-actions {
   display: flex;
   gap: 6px;
+  align-items: center;
 }
 
 .reminder-done-btn {
   background: #e7f7ed;
   color: #0d7c3f;
-  padding: 6px 8px;
-}
-
-.reminder-snooze-btn {
-  background: #f3f3f6;
-  color: #3a3a3f;
   padding: 6px 8px;
 }
 

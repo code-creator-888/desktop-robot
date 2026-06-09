@@ -27,6 +27,22 @@ test('renderer supports deleting reminders from list', () => {
   assert.match(source, /reminderItems\s*=\s*reminderItems\.filter\(x => x\.id !== id\)/);
 });
 
+test('renderer supports rule-based reminder scheduling', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  assert.match(source, /function computeNextTriggerAt\(/);
+  assert.match(source, /rule:\s*\{/);
+  assert.match(source, /'one-time'/);
+  assert.match(source, /nextTriggerAt:/);
+  assert.match(source, /item\.nextTriggerAt/);
+});
+
+test('renderer has no snooze controls or snooze rule data', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  assert.doesNotMatch(source, /snoozeOptions:\s*\[5,\s*10,\s*30\]/);
+  assert.doesNotMatch(source, /reminder-snooze-select/);
+  assert.doesNotMatch(source, /reminder-snooze-btn/);
+});
+
 test('preload exposes calendar fetch for reminder import', () => {
   const source = fs.readFileSync(preloadPath, 'utf8');
   assert.doesNotMatch(source, /getCalendarEvents:\s*\(\)\s*=>\s*ipcRenderer\.invoke\('get-calendar-events'\)/);

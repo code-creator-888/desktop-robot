@@ -51,6 +51,7 @@ const reminderCenter = document.getElementById('reminder-center');
 const reminderCenterClose = document.getElementById('reminder-center-close');
 const reminderAddTitle = document.getElementById('reminder-add-title');
 const reminderAddTime = document.getElementById('reminder-add-time');
+const reminderRuleType = document.getElementById('reminder-rule-type');
 const reminderAddBtn = document.getElementById('reminder-add-btn');
 const reminderListEl = document.getElementById('reminder-list');
 
@@ -473,7 +474,18 @@ function loadReminderItems() {
     if (!raw) return [];
     const items = JSON.parse(raw);
     if (!Array.isArray(items)) return [];
-    return items.filter(item => item && item.id && item.title && item.dueAt);
+    return items
+      .filter(item => item && item.id && item.title && (item.dueAt || item.nextTriggerAt))
+      .map((item) => {
+        const ruleType = item.rule?.type || 'one-time';
+        return {
+          ...item,
+          rule: {
+            type: ['one-time', 'daily', 'weekly', 'workday'].includes(ruleType) ? ruleType : 'one-time'
+          },
+          nextTriggerAt: item.nextTriggerAt || item.dueAt
+        };
+      });
   } catch {
     return [];
   }
@@ -489,22 +501,51 @@ function formatReminderTime(iso) {
   return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+function formatReminderRule(type) {
+  if (type === 'daily') return '每天';
+  if (type === 'weekly') return '每周';
+  if (type === 'workday') return '工作日';
+  return '仅一次';
+}
+
+function computeNextTriggerAt(item, nowTs) {
+  const base = new Date(nowTs);
+  if (Number.isNaN(base.getTime())) return null;
+  const ruleType = item.rule?.type || 'one-time';
+  if (ruleType === 'one-time') return null;
+  if (ruleType === 'daily') {
+    return new Date(base.getTime() + 24 * 60 * 60 * 1000).toISOString();
+  }
+  if (ruleType === 'weekly') {
+    return new Date(base.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  }
+  if (ruleType === 'workday') {
+    const d = new Date(base);
+    do {
+      d.setDate(d.getDate() + 1);
+    } while (d.getDay() === 0 || d.getDay() === 6);
+    return d.toISOString();
+  }
+  return null;
+}
+
 function renderReminderList() {
   if (!reminderListEl) return;
   reminderListEl.innerHTML = '';
-  const sorted = [...reminderItems].sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
+  const sorted = [...reminderItems].sort((a, b) => new Date(a.nextTriggerAt || a.dueAt).getTime() - new Date(b.nextTriggerAt || b.dueAt).getTime());
 
   sorted.forEach((item) => {
+    const ruleType = item.rule?.type || 'one-time';
+
     const row = document.createElement('div');
     row.className = 'reminder-item' + (item.status === 'done' ? ' done' : '');
     row.innerHTML = `
       <div class="reminder-item-main">
         <div class="reminder-item-title">${item.title}</div>
-        <div class="reminder-item-meta">${formatReminderTime(item.dueAt)} · ${item.source === 'calendar' ? '日历' : '手动'}</div>
+        <div class="reminder-item-meta">${formatReminderTime(item.nextTriggerAt || item.dueAt)} · ${formatReminderRule(ruleType)}</div>
       </div>
       <div class="reminder-item-actions">
         <button class="reminder-done-btn" data-id="${item.id}">完成</button>
-        <button class="reminder-snooze-btn" data-id="${item.id}">稍后10分钟</button>
         <button class="reminder-delete-btn" data-id="${item.id}">删除</button>
       </div>
     `;
@@ -517,18 +558,6 @@ function renderReminderList() {
       const item = reminderItems.find(x => x.id === id);
       if (!item) return;
       item.status = 'done';
-      saveReminderItems();
-      renderReminderList();
-    });
-  });
-
-  reminderListEl.querySelectorAll('.reminder-snooze-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const item = reminderItems.find(x => x.id === id);
-      if (!item || item.status === 'done') return;
-      item.dueAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-      item.lastNotifiedAt = 0;
       saveReminderItems();
       renderReminderList();
     });
@@ -548,12 +577,15 @@ function addManualReminder() {
   const title = reminderAddTitle.value.trim();
   const dueRaw = reminderAddTime.value;
   const dueAt = dueRaw ? new Date(dueRaw).toISOString() : '';
+  const selectedRuleType = ['one-time', 'daily', 'weekly', 'workday'].includes(reminderRuleType?.value) ? reminderRuleType.value : 'one-time';
   if (!title || !dueAt) return;
   reminderItems.push({
     id: Date.now().toString() + Math.random().toString(16).slice(2, 8),
     title,
     dueAt,
     source: 'manual',
+    rule: { type: selectedRuleType },
+    nextTriggerAt: dueAt,
     status: 'pending',
     lastNotifiedAt: 0
   });
@@ -567,12 +599,14 @@ function checkDueReminders() {
   let dirty = false;
   for (const item of reminderItems) {
     if (item.status === 'done') continue;
-    const dueTs = new Date(item.dueAt).getTime();
-    if (Number.isNaN(dueTs) || now < dueTs) continue;
+    const triggerTs = new Date(item.nextTriggerAt || item.dueAt).getTime();
+    if (Number.isNaN(triggerTs) || now < triggerTs) continue;
     const last = Number(item.lastNotifiedAt || 0);
     if (now - last < 5 * 60 * 1000) continue;
     item.lastNotifiedAt = now;
     showSpeech(`提醒：${item.title}`, 0, true);
+    item.nextTriggerAt = computeNextTriggerAt(item, triggerTs);
+    if (!item.nextTriggerAt) item.status = 'done';
     dirty = true;
   }
   if (dirty) {

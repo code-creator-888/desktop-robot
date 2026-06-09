@@ -11,6 +11,7 @@ test('reminder center panel exists with manual and calendar actions', () => {
   assert.match(html, /id="reminder-center"/);
   assert.match(html, /id="reminder-add-title"/);
   assert.match(html, /id="reminder-add-time"/);
+  assert.match(html, /id="reminder-rule-type"/);
   assert.match(html, /id="reminder-add-btn"/);
   assert.doesNotMatch(html, /id="reminder-import-calendar-btn"/);
   assert.match(html, /id="reminder-list"/);
@@ -23,4 +24,6 @@ test('reminder center has modal styles and hidden state', () => {
   assert.match(css, /#reminder-center[\s\S]*pointer-events:\s*auto/);
   assert.match(css, /\.reminder-list/);
   assert.match(css, /\.reminder-item/);
+  assert.doesNotMatch(css, /\.reminder-snooze-select/);
+  assert.doesNotMatch(css, /\.reminder-snooze-btn/);
 });

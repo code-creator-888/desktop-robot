@@ -146,6 +146,12 @@
       <div class="reminder-add-row">
         <input type="text" id="reminder-add-title" placeholder="提醒内容，例如：喝水" maxlength="60">
         <input type="datetime-local" id="reminder-add-time">
+        <select id="reminder-rule-type">
+          <option value="one-time">仅一次</option>
+          <option value="daily">每天</option>
+          <option value="weekly">每周</option>
+          <option value="workday">工作日</option>
+        </select>
         <button id="reminder-add-btn">添加提醒</button>
       </div>
       <div id="reminder-list" class="reminder-list"></div>
