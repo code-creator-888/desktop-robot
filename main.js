@@ -70,6 +70,7 @@ async function buildPetMenuAsync() {
   items.push(
     { label: '📊 系统监控', click: () => win && win.webContents.send('menu-action', 'system-monitor') },
     { label: '🔌 端口监控', click: () => win && win.webContents.send('menu-action', 'port-monitor') },
+    { label: '⏰ 提醒中心', click: () => win && win.webContents.send('menu-action', 'reminder-center') },
     { label: '⚙️ 设置', click: () => win && win.webContents.send('menu-action', 'settings') },
     { type: 'separator' },
     { label: '🚪 退出', click: () => app.quit() }

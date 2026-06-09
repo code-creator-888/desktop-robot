@@ -47,6 +47,12 @@ const portMonitor = document.getElementById('port-monitor');
 const portMonitorClose = document.getElementById('port-monitor-close');
 const systemMonitorIntervalSelect = document.getElementById('system-monitor-interval');
 const portMonitorIntervalSelect = document.getElementById('port-monitor-interval');
+const reminderCenter = document.getElementById('reminder-center');
+const reminderCenterClose = document.getElementById('reminder-center-close');
+const reminderAddTitle = document.getElementById('reminder-add-title');
+const reminderAddTime = document.getElementById('reminder-add-time');
+const reminderAddBtn = document.getElementById('reminder-add-btn');
+const reminderListEl = document.getElementById('reminder-list');
 
 let currentPet = 'robot';
 let behavior = 'idle';
@@ -59,11 +65,13 @@ let isChatOpen = false;
 let isSettingsOpen = false;
 let isMonitorOpen = false;
 let isThinking = false;
+let isReminderOpen = false;
 let systemMonitorInterval = null;
 let portMonitorInterval = null;
 let chatMessagesList = [];
 let currentSessionId = null;
 let envConfig = { baseUrl: '', model: '', apiKey: '' };
+let reminderItems = [];
 
 // --- Session management ---
 const MAX_SESSIONS = 10;
@@ -71,6 +79,7 @@ const SESSIONS_KEY = 'chatSessions';
 const LAST_SESSION_KEY = 'lastSessionId';
 const DEFAULT_AUTO_WEB_FALLBACK = true;
 const DEFAULT_WEB_SEARCH_TOPK = 5;
+const REMINDER_STORAGE_KEY = 'reminderItems';
 
 function clampWebSearchTopK(value) {
   const n = Number.isFinite(Number(value)) ? Number(value) : DEFAULT_WEB_SEARCH_TOPK;
@@ -176,13 +185,16 @@ function render() {
   container.classList.toggle('thinking-tech', isThinking);
 }
 
-function showSpeech(text, duration) {
+function showSpeech(text, duration, persistent) {
   speechBubble.textContent = text;
   speechBubble.classList.remove('hidden');
+  speechBubble.classList.toggle('clickable', !!persistent);
   clearTimeout(speechTimeout);
+  if (persistent || !duration || duration <= 0) return;
   speechTimeout = setTimeout(() => {
     speechBubble.classList.add('hidden');
-  }, duration || 2000);
+    speechBubble.classList.remove('clickable');
+  }, duration);
 }
 
 // --- Model config management ---
@@ -450,7 +462,136 @@ function openSettings() {
 function closeSettings() {
   isSettingsOpen = false;
   settingsModal.classList.add('hidden');
-  if (!isDragging) {
+  if (!isDragging && !isChatOpen && !isMonitorOpen && !isReminderOpen) {
+    setMouseCapture(false);
+  }
+}
+
+function loadReminderItems() {
+  try {
+    const raw = localStorage.getItem(REMINDER_STORAGE_KEY);
+    if (!raw) return [];
+    const items = JSON.parse(raw);
+    if (!Array.isArray(items)) return [];
+    return items.filter(item => item && item.id && item.title && item.dueAt);
+  } catch {
+    return [];
+  }
+}
+
+function saveReminderItems() {
+  localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(reminderItems));
+}
+
+function formatReminderTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function renderReminderList() {
+  if (!reminderListEl) return;
+  reminderListEl.innerHTML = '';
+  const sorted = [...reminderItems].sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
+
+  sorted.forEach((item) => {
+    const row = document.createElement('div');
+    row.className = 'reminder-item' + (item.status === 'done' ? ' done' : '');
+    row.innerHTML = `
+      <div class="reminder-item-main">
+        <div class="reminder-item-title">${item.title}</div>
+        <div class="reminder-item-meta">${formatReminderTime(item.dueAt)} · ${item.source === 'calendar' ? '日历' : '手动'}</div>
+      </div>
+      <div class="reminder-item-actions">
+        <button class="reminder-done-btn" data-id="${item.id}">完成</button>
+        <button class="reminder-snooze-btn" data-id="${item.id}">稍后10分钟</button>
+        <button class="reminder-delete-btn" data-id="${item.id}">删除</button>
+      </div>
+    `;
+    reminderListEl.appendChild(row);
+  });
+
+  reminderListEl.querySelectorAll('.reminder-done-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const item = reminderItems.find(x => x.id === id);
+      if (!item) return;
+      item.status = 'done';
+      saveReminderItems();
+      renderReminderList();
+    });
+  });
+
+  reminderListEl.querySelectorAll('.reminder-snooze-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const item = reminderItems.find(x => x.id === id);
+      if (!item || item.status === 'done') return;
+      item.dueAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      item.lastNotifiedAt = 0;
+      saveReminderItems();
+      renderReminderList();
+    });
+  });
+
+  reminderListEl.querySelectorAll('.reminder-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      reminderItems = reminderItems.filter(x => x.id !== id);
+      saveReminderItems();
+      renderReminderList();
+    });
+  });
+}
+
+function addManualReminder() {
+  const title = reminderAddTitle.value.trim();
+  const dueRaw = reminderAddTime.value;
+  const dueAt = dueRaw ? new Date(dueRaw).toISOString() : '';
+  if (!title || !dueAt) return;
+  reminderItems.push({
+    id: Date.now().toString() + Math.random().toString(16).slice(2, 8),
+    title,
+    dueAt,
+    source: 'manual',
+    status: 'pending',
+    lastNotifiedAt: 0
+  });
+  saveReminderItems();
+  renderReminderList();
+  reminderAddTitle.value = '';
+}
+
+function checkDueReminders() {
+  const now = Date.now();
+  let dirty = false;
+  for (const item of reminderItems) {
+    if (item.status === 'done') continue;
+    const dueTs = new Date(item.dueAt).getTime();
+    if (Number.isNaN(dueTs) || now < dueTs) continue;
+    const last = Number(item.lastNotifiedAt || 0);
+    if (now - last < 5 * 60 * 1000) continue;
+    item.lastNotifiedAt = now;
+    showSpeech(`提醒：${item.title}`, 0, true);
+    dirty = true;
+  }
+  if (dirty) {
+    saveReminderItems();
+    renderReminderList();
+  }
+}
+
+function openReminderCenter() {
+  isReminderOpen = true;
+  reminderCenter.classList.remove('hidden');
+  setMouseCapture(true);
+  renderReminderList();
+}
+
+function closeReminderCenter() {
+  isReminderOpen = false;
+  reminderCenter.classList.add('hidden');
+  if (!isDragging && !isSettingsOpen && !isMonitorOpen && !isChatOpen) {
     setMouseCapture(false);
   }
 }
@@ -470,7 +611,7 @@ function closeChat() {
   saveCurrentSession();
   isChatOpen = false;
   chatPanel.classList.add('hidden');
-  if (!isDragging && !isSettingsOpen) {
+  if (!isDragging && !isSettingsOpen && !isMonitorOpen && !isReminderOpen) {
     setMouseCapture(false);
   }
 }
@@ -785,7 +926,7 @@ function closeSystemMonitor() {
   if (portMonitor.classList.contains('hidden')) {
     isMonitorOpen = false;
   }
-  if (!isDragging && !isSettingsOpen && !isMonitorOpen) {
+  if (!isDragging && !isSettingsOpen && !isMonitorOpen && !isReminderOpen) {
     setMouseCapture(false);
   }
 }
@@ -915,7 +1056,7 @@ function closePortMonitor() {
   if (systemMonitor.classList.contains('hidden')) {
     isMonitorOpen = false;
   }
-  if (!isDragging && !isSettingsOpen && !isMonitorOpen) {
+  if (!isDragging && !isSettingsOpen && !isMonitorOpen && !isReminderOpen) {
     setMouseCapture(false);
   }
 }
@@ -997,11 +1138,12 @@ function setMouseCapture(capture) {
 
 document.addEventListener('mousemove', (e) => {
   if (isDragging) return;
-  if (isSettingsOpen || isMonitorOpen) return;
+  if (isSettingsOpen || isMonitorOpen || isReminderOpen) return;
   const el = document.elementFromPoint(e.clientX, e.clientY);
   const overContainer = !!(el && el.closest('#pet-container'));
   const overChatPanel = !!(el && el.closest('#chat-panel'));
-  setMouseCapture(overContainer || overChatPanel);
+  const overReminderCenter = !!(el && el.closest('#reminder-center'));
+  setMouseCapture(overContainer || overChatPanel || overReminderCenter);
 });
 
 // --- Context menu (native) ---
@@ -1030,6 +1172,12 @@ window.electronAPI.onMenuAction((action) => {
       closePortMonitor();
     } else {
       openPortMonitor();
+    }
+  } else if (action === 'reminder-center') {
+    if (isReminderOpen) {
+      closeReminderCenter();
+    } else {
+      openReminderCenter();
     }
   } else if (typeof action === 'string' && action.startsWith('switch-model:')) {
     const id = action.slice('switch-model:'.length);
@@ -1062,6 +1210,7 @@ window.addEventListener('keydown', (e) => {
       if (!systemMonitor.classList.contains('hidden')) closeSystemMonitor();
       if (!portMonitor.classList.contains('hidden')) closePortMonitor();
     }
+    if (isReminderOpen) closeReminderCenter();
   }
 });
 
@@ -1069,8 +1218,22 @@ window.addEventListener('keydown', (e) => {
 settingSave.addEventListener('click', saveSettings);
 settingCancel.addEventListener('click', closeSettings);
 settingsModal.querySelector('.settings-backdrop').addEventListener('click', closeSettings);
+reminderCenterClose.addEventListener('click', closeReminderCenter);
+reminderCenter.querySelector('.monitor-backdrop').addEventListener('click', closeReminderCenter);
+reminderAddBtn.addEventListener('click', addManualReminder);
+reminderAddTime.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') addManualReminder();
+});
+speechBubble.addEventListener('click', () => {
+  if (!speechBubble.classList.contains('clickable')) return;
+  speechBubble.classList.add('hidden');
+  speechBubble.classList.remove('clickable');
+});
 
 // --- Init ---
+reminderItems = loadReminderItems();
+checkDueReminders();
+setInterval(checkDueReminders, 30000);
 container.style.left = (window.innerWidth - getPet().size - 20) + 'px';
 render();
 reportPetBounds();

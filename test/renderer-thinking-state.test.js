@@ -49,7 +49,8 @@ test('switch-model action keeps chat input editable', () => {
 test('mousemove passthrough should not disable capture while chat is open', () => {
   const source = fs.readFileSync(rendererPath, 'utf8');
   assert.match(source, /const overChatPanel = !!\(el && el\.closest\('#chat-panel'\)\);/, 'mousemove handler should detect chat panel hover');
-  assert.match(source, /setMouseCapture\(overContainer \|\| overChatPanel\);/, 'mousemove handler should keep capture for robot or chat panel');
+  assert.match(source, /const overReminderCenter = !!\(el && el\.closest\('#reminder-center'\)\);/, 'mousemove handler should detect reminder center hover');
+  assert.match(source, /setMouseCapture\(overContainer \|\| overChatPanel \|\| overReminderCenter\);/, 'mousemove handler should keep capture for robot, chat panel, or reminder center');
 });
 
 test('render toggles thinking-tech class by isThinking', () => {

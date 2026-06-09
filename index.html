@@ -136,6 +136,22 @@
     </div>
   </div>
 
+  <div id="reminder-center" class="hidden">
+    <div class="monitor-backdrop"></div>
+    <div class="monitor-card monitor-card-wide">
+      <div class="monitor-header">
+        <span>⏰ 提醒中心</span>
+        <button id="reminder-center-close">✕</button>
+      </div>
+      <div class="reminder-add-row">
+        <input type="text" id="reminder-add-title" placeholder="提醒内容，例如：喝水" maxlength="60">
+        <input type="datetime-local" id="reminder-add-time">
+        <button id="reminder-add-btn">添加提醒</button>
+      </div>
+      <div id="reminder-list" class="reminder-list"></div>
+    </div>
+  </div>
+
   <div id="settings-modal" class="hidden">
     <div class="settings-backdrop"></div>
     <div class="settings-card settings-card-wide">
