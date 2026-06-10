@@ -27,3 +27,10 @@ test('reminder center has modal styles and hidden state', () => {
   assert.doesNotMatch(css, /\.reminder-snooze-select/);
   assert.doesNotMatch(css, /\.reminder-snooze-btn/);
 });
+
+test('settings modal captures pointer events so controls are clickable', () => {
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const css = fs.readFileSync(cssPath, 'utf8');
+  assert.match(html, /id="settings-modal"/);
+  assert.match(css, /#settings-modal\s*\{[^}]*pointer-events:\s*auto[^}]*\}/);
+});
