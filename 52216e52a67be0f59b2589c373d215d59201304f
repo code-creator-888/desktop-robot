@@ -1,0 +1,23 @@
+renderer.js
+  f5957680b23c0176 712-715
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.22",
+  "base_commit_sha": "52216e52a67be0f59b2589c373d215d59201304f",
+  "prompts": {
+    "f5957680b23c0176": {
+      "agent_id": {
+        "tool": "qoder",
+        "id": "a7031780-7ff3-43e0-b803-df570df8c14b",
+        "model": "qoder-model"
+      },
+      "human_author": "Anonymous",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 2,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}
