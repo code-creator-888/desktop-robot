@@ -40,6 +40,10 @@ html, body {
   animation: bounce 0.4s ease;
 }
 
+#pet.attention-wiggle {
+  animation: attention-wiggle 0.4s ease-in-out 4;
+}
+
 /* Idle: gentle breathing */
 #pet.idle {
   animation: breathe 3s ease-in-out infinite;
@@ -100,6 +104,12 @@ html, body {
   50% { transform: translateY(-15px); }
 }
 
+@keyframes attention-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+
 /* Speech bubble */
 #speech-bubble {
   position: absolute;
@@ -114,6 +124,7 @@ html, body {
   white-space: nowrap;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   pointer-events: none;
+  animation: speech-pop-in 0.3s ease-out;
 }
 
 #speech-bubble::after {
@@ -136,6 +147,21 @@ html, body {
 #speech-bubble.clickable {
   pointer-events: auto;
   cursor: pointer;
+}
+
+#speech-bubble.reminder-alert {
+  animation: speech-pop-in 0.3s ease-out, reminder-glow-pulse 0.8s ease-in-out 4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 12px rgba(255, 87, 34, 0.5);
+}
+
+@keyframes speech-pop-in {
+  from { transform: translateX(-50%) scale(0.6); opacity: 0; }
+  to { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+@keyframes reminder-glow-pulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 12px rgba(255, 87, 34, 0.5); }
+  50% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 24px rgba(255, 87, 34, 0.8); }
 }
 
 #chat-panel {

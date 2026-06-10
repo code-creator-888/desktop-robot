@@ -703,6 +703,30 @@ function addManualReminder() {
   reminderAddTitle.value = '';
 }
 
+function triggerReminderAlert(item) {
+  showSpeech(`提醒：${item.title}`, 0, true);
+  speechBubble.classList.add('reminder-alert');
+  setTimeout(() => speechBubble.classList.remove('reminder-alert'), 3200);
+
+  petEl.classList.remove('idle');
+  petEl.classList.add('bounce');
+  petEl.addEventListener('animationend', function onBounceEnd() {
+    petEl.removeEventListener('animationend', onBounceEnd);
+    petEl.classList.remove('bounce');
+    setTimeout(() => {
+      petEl.classList.add('bounce');
+      petEl.addEventListener('animationend', function onBounce2() {
+        petEl.removeEventListener('animationend', onBounce2);
+        petEl.classList.remove('bounce');
+        petEl.classList.add('idle');
+      });
+    }, 150);
+  });
+
+  petEl.classList.add('attention-wiggle');
+  setTimeout(() => petEl.classList.remove('attention-wiggle'), 1600);
+}
+
 function checkDueReminders() {
   const now = Date.now();
   let dirty = false;
@@ -713,7 +737,7 @@ function checkDueReminders() {
     const last = Number(item.lastNotifiedAt || 0);
     if (now - last < 5 * 60 * 1000) continue;
     item.lastNotifiedAt = now;
-    showSpeech(`提醒：${item.title}`, 0, true);
+    triggerReminderAlert(item);
     item.nextTriggerAt = computeNextTriggerAt(item, triggerTs);
     if (!item.nextTriggerAt) item.status = 'done';
     dirty = true;
