@@ -69,10 +69,12 @@ let isThinking = false;
 let isReminderOpen = false;
 let systemMonitorInterval = null;
 let portMonitorInterval = null;
+let countdownInterval = null;
 let chatMessagesList = [];
 let currentSessionId = null;
 let envConfig = { baseUrl: '', model: '', apiKey: '' };
 let reminderItems = [];
+let editingReminderId = null;
 
 // --- Session management ---
 const MAX_SESSIONS = 10;
@@ -501,11 +503,31 @@ function formatReminderTime(iso) {
   return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+function isoToLocalInput(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
 function formatReminderRule(type) {
   if (type === 'daily') return '每天';
   if (type === 'weekly') return '每周';
   if (type === 'workday') return '工作日';
   return '仅一次';
+}
+
+function formatCountdown(ms) {
+  if (ms <= 0) return '已到时间';
+  const totalSec = Math.floor(ms / 1000);
+  const d = Math.floor(totalSec / 86400);
+  const h = Math.floor((totalSec % 86400) / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (d > 0) return d + '天 ' + h + '小时';
+  if (h > 0) return h + '小时 ' + m + '分';
+  if (m > 0) return m + '分 ' + s + '秒';
+  return s + '秒';
 }
 
 function computeNextTriggerAt(item, nowTs) {
@@ -536,20 +558,83 @@ function renderReminderList() {
 
   sorted.forEach((item) => {
     const ruleType = item.rule?.type || 'one-time';
+    const isEditing = item.id === editingReminderId;
 
     const row = document.createElement('div');
-    row.className = 'reminder-item' + (item.status === 'done' ? ' done' : '');
-    row.innerHTML = `
-      <div class="reminder-item-main">
-        <div class="reminder-item-title">${item.title}</div>
-        <div class="reminder-item-meta">${formatReminderTime(item.nextTriggerAt || item.dueAt)} · ${formatReminderRule(ruleType)}</div>
-      </div>
-      <div class="reminder-item-actions">
-        <button class="reminder-done-btn" data-id="${item.id}">完成</button>
-        <button class="reminder-delete-btn" data-id="${item.id}">删除</button>
-      </div>
-    `;
+    row.className = 'reminder-item' + (item.status === 'done' ? ' done' : '') + (isEditing ? ' editing' : '');
+
+    if (isEditing) {
+      const localTime = isoToLocalInput(item.nextTriggerAt || item.dueAt);
+      row.innerHTML = `
+        <div class="reminder-edit-form">
+          <input type="text" class="reminder-edit-title" value="${item.title}" maxlength="60">
+          <input type="datetime-local" class="reminder-edit-time" value="${localTime}">
+          <select class="reminder-edit-rule">
+            <option value="one-time"${ruleType === 'one-time' ? ' selected' : ''}>仅一次</option>
+            <option value="daily"${ruleType === 'daily' ? ' selected' : ''}>每天</option>
+            <option value="weekly"${ruleType === 'weekly' ? ' selected' : ''}>每周</option>
+            <option value="workday"${ruleType === 'workday' ? ' selected' : ''}>工作日</option>
+          </select>
+        </div>
+        <div class="reminder-item-actions">
+          <button class="reminder-save-btn" data-id="${item.id}">保存</button>
+          <button class="reminder-cancel-btn" data-id="${item.id}">取消</button>
+        </div>
+      `;
+    } else {
+      const triggerTs = new Date(item.nextTriggerAt || item.dueAt).getTime();
+      row.innerHTML = `
+        <div class="reminder-item-main">
+          <div class="reminder-item-title">${item.title}</div>
+          <div class="reminder-item-meta">${formatReminderTime(item.nextTriggerAt || item.dueAt)} · ${formatReminderRule(ruleType)}</div>
+          ${item.status !== 'done' ? `<div class="reminder-countdown" data-trigger-ts="${triggerTs}"></div>` : ''}
+        </div>
+        <div class="reminder-item-actions">
+          ${item.status !== 'done' ? `<button class="reminder-edit-btn" data-id="${item.id}">编辑</button>` : ''}
+          <button class="reminder-done-btn" data-id="${item.id}">完成</button>
+          <button class="reminder-delete-btn" data-id="${item.id}">删除</button>
+        </div>
+      `;
+    }
     reminderListEl.appendChild(row);
+  });
+
+  reminderListEl.querySelectorAll('.reminder-edit-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      editingReminderId = btn.dataset.id;
+      stopCountdown();
+      renderReminderList();
+    });
+  });
+
+  reminderListEl.querySelectorAll('.reminder-save-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const item = reminderItems.find(x => x.id === id);
+      if (!item) return;
+      const row = btn.closest('.reminder-item');
+      const title = row.querySelector('.reminder-edit-title').value.trim();
+      const timeRaw = row.querySelector('.reminder-edit-time').value;
+      const ruleVal = row.querySelector('.reminder-edit-rule').value;
+      if (!title || !timeRaw) return;
+      const dueAt = new Date(timeRaw).toISOString();
+      item.title = title;
+      item.dueAt = dueAt;
+      item.nextTriggerAt = dueAt;
+      item.rule = { type: ['one-time', 'daily', 'weekly', 'workday'].includes(ruleVal) ? ruleVal : 'one-time' };
+      item.status = 'pending';
+      item.lastNotifiedAt = 0;
+      editingReminderId = null;
+      saveReminderItems();
+      renderReminderList();
+    });
+  });
+
+  reminderListEl.querySelectorAll('.reminder-cancel-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      editingReminderId = null;
+      renderReminderList();
+    });
   });
 
   reminderListEl.querySelectorAll('.reminder-done-btn').forEach((btn) => {
@@ -571,6 +656,30 @@ function renderReminderList() {
       renderReminderList();
     });
   });
+
+  if (isReminderOpen) startCountdown();
+}
+
+function updateReminderCountdowns() {
+  if (!reminderListEl) return;
+  const now = Date.now();
+  reminderListEl.querySelectorAll('.reminder-countdown').forEach((el) => {
+    const ts = Number(el.dataset.triggerTs);
+    if (!ts || Number.isNaN(ts)) { el.textContent = ''; return; }
+    const remaining = ts - now;
+    el.textContent = '⏳ ' + formatCountdown(remaining);
+    el.classList.toggle('countdown-urgent', remaining > 0 && remaining <= 60000);
+  });
+}
+
+function startCountdown() {
+  stopCountdown();
+  updateReminderCountdowns();
+  countdownInterval = setInterval(updateReminderCountdowns, 1000);
+}
+
+function stopCountdown() {
+  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
 }
 
 function addManualReminder() {
@@ -620,10 +729,12 @@ function openReminderCenter() {
   reminderCenter.classList.remove('hidden');
   setMouseCapture(true);
   renderReminderList();
+  startCountdown();
 }
 
 function closeReminderCenter() {
   isReminderOpen = false;
+  stopCountdown();
   reminderCenter.classList.add('hidden');
   if (!isDragging && !isSettingsOpen && !isMonitorOpen && !isChatOpen) {
     setMouseCapture(false);

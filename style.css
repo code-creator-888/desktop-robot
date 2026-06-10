@@ -918,6 +918,57 @@ html, body {
   padding: 6px 8px;
 }
 
+.reminder-countdown {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #007aff;
+  font-variant-numeric: tabular-nums;
+}
+
+.reminder-countdown.countdown-urgent {
+  color: #c22b39;
+  font-weight: 600;
+}
+
+.reminder-edit-btn {
+  background: #e8f0fe;
+  color: #1a73e8;
+  padding: 6px 8px;
+}
+
+.reminder-item.editing {
+  border-color: #007aff;
+  background: #fff;
+}
+
+.reminder-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.reminder-edit-form input,
+.reminder-edit-form select {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.reminder-save-btn {
+  background: #007aff;
+  color: white;
+  padding: 6px 8px;
+}
+
+.reminder-cancel-btn {
+  background: #f0f0f0;
+  color: #666;
+  padding: 6px 8px;
+}
+
 .stat-row {
   display: flex;
   justify-content: space-between;
