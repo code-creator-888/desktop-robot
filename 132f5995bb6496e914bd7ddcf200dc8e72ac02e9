@@ -1,0 +1,25 @@
+renderer.js
+  05b35ebb61909acd 72,77,506-512,520-532,561,564-598,602-637,659-660,663-682,732,737
+style.css
+  05b35ebb61909acd 921-971
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.22",
+  "base_commit_sha": "132f5995bb6496e914bd7ddcf200dc8e72ac02e9",
+  "prompts": {
+    "05b35ebb61909acd": {
+      "agent_id": {
+        "tool": "qoder",
+        "id": "879e0764-8231-4b48-b27d-d3b7fa7800c6",
+        "model": "qoder-model"
+      },
+      "human_author": "Anonymous",
+      "messages": [],
+      "total_additions": 175,
+      "total_deletions": 13,
+      "accepted_lines": 173,
+      "overriden_lines": 0
+    }
+  }
+}
