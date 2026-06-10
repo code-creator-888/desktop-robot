@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, Tray, Menu, ipcMain, nativeImage } = require('electron');
+const { app, BrowserWindow, screen, Tray, Menu, ipcMain, nativeImage, clipboard } = require('electron');
 const path = require('path');
 const http = require('http');
 const https = require('https');
@@ -11,6 +11,37 @@ const { dedupeResults, normalizeWebSearchPayload } = require('./lib/web-fallback
 const execAsync = util.promisify(exec);
 const execFileAsync = util.promisify(execFile);
 const { uIOhook } = require('uiohook-napi');
+
+let translateInProgress = false;
+let cmdPressed = false, shiftPressed = false;
+
+async function handleTranslateShortcut() {
+  if (translateInProgress) return;
+  translateInProgress = true;
+  try {
+    // wait for user to release Cmd and Shift before simulating Cmd+C
+    await new Promise(resolve => {
+      let elapsed = 0;
+      const check = setInterval(() => {
+        elapsed += 50;
+        if (elapsed > 2000) { clearInterval(check); resolve(); }
+        if (!cmdPressed && !shiftPressed) { clearInterval(check); resolve(); }
+      }, 50);
+    });
+    await new Promise(r => setTimeout(r, 50));
+    const oldClip = clipboard.readText();
+    await execAsync(`osascript -e 'tell application "System Events" to keystroke "c" using command down'`);
+    await new Promise(r => setTimeout(r, 300));
+    const selected = clipboard.readText().trim();
+    setTimeout(() => clipboard.writeText(oldClip), 500);
+    if (win) win.webContents.send('translate-selection', selected);
+  } catch (e) {
+    console.log('[translate] error:', e.message);
+    if (win) win.webContents.send('translate-selection', '');
+  } finally {
+    setTimeout(() => { translateInProgress = false; }, 500);
+  }
+}
 
 function createWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
@@ -81,6 +112,19 @@ async function buildPetMenuAsync() {
 
 app.whenReady().then(() => {
   createWindow();
+
+  // Translate shortcut: Cmd+Shift+T
+  uIOhook.on('keydown', (e) => {
+    if (e.keycode === 3675) cmdPressed = true;
+    if (e.keycode === 42) shiftPressed = true;
+    if (e.keycode === 20 && cmdPressed && shiftPressed) {
+      handleTranslateShortcut();
+    }
+  });
+  uIOhook.on('keyup', (e) => {
+    if (e.keycode === 3675) cmdPressed = false;
+    if (e.keycode === 42) shiftPressed = false;
+  });
 
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);

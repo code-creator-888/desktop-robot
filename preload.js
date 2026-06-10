@@ -15,5 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addPort: (port) => ipcRenderer.invoke('add-port', port),
   removePort: (port) => ipcRenderer.invoke('remove-port', port),
   getPortList: () => ipcRenderer.invoke('get-port-list'),
-  setPetBounds: (bounds) => ipcRenderer.send('set-pet-bounds', bounds)
+  setPetBounds: (bounds) => ipcRenderer.send('set-pet-bounds', bounds),
+  onTranslateSelection: (cb) => ipcRenderer.on('translate-selection', (_, text) => cb(text))
 });

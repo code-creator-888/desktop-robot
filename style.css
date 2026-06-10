@@ -122,6 +122,8 @@ html, body {
   font-size: 14px;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   white-space: nowrap;
+  max-width: min(320px, 40vw);
+  overflow-wrap: break-word;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   pointer-events: none;
 }
@@ -373,6 +375,15 @@ html, body {
   align-self: flex-start;
   background: #ffe5e5;
   color: #c00;
+}
+
+.chat-message.translate-msg {
+  align-self: flex-start;
+  background: #eef6ff;
+  border-left: 3px solid #4a9eff;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+  font-size: 13px;
 }
 
 #chat-input-area {

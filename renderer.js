@@ -1405,6 +1405,62 @@ speechBubble.addEventListener('click', () => {
   speechBubble.classList.remove('clickable');
 });
 
+// --- Translate / Explain selection ---
+async function handleTranslateSelection(text) {
+  if (!text) {
+    showSpeech('请先 Cmd+C 复制文字', 2500);
+    return;
+  }
+
+  const settings = getSettings();
+  if (!settings || !settings.baseUrl || !settings.model || !settings.apiKey) {
+    showSpeech('请先配置模型', 2000);
+    return;
+  }
+
+  showSpeech('翻译中…', 0);
+
+  const prompt = `你是一个精准的翻译助手。请对以下文字进行处理：
+- 如果是英文或其他外语，格式为：原文: 中文翻译（如 happy: 快乐的）
+- 如果是中文，简要解释其含义，并为每个汉字标注拼音（格式：汉(hàn)字(zì)）
+
+要求：只输出结果，不要任何额外说明，确保内容完整不要截断。
+
+原文："""${text}"""`;
+
+  try {
+    const result = await window.electronAPI.chat({
+      baseUrl: settings.baseUrl,
+      model: settings.model,
+      apiKey: settings.apiKey,
+      provider: settings.provider,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    if (result.success) {
+      const reply = result.content;
+      const preview = reply.replace(/\n+/g, ' ');
+      showSpeech(preview, 10000);
+      const trimmedText = text.length > 30 ? text.slice(0, 30) + '…' : text;
+      appendTranslateMessage(`「${trimmedText}」\n${reply}`);
+    } else {
+      showSpeech('翻译失败', 2000);
+    }
+  } catch (e) {
+    showSpeech('翻译出错', 2000);
+  }
+}
+
+function appendTranslateMessage(content) {
+  const div = document.createElement('div');
+  div.className = 'chat-message translate-msg';
+  div.textContent = content;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+window.electronAPI.onTranslateSelection(handleTranslateSelection);
+
 // --- Init ---
 reminderItems = loadReminderItems();
 checkDueReminders();
