@@ -14,6 +14,7 @@ const PET_PERSONALITIES = {
 };
 
 const WALK_SPEED = 1.8;
+const SPEECH_WRAP_THRESHOLD = 18;
 
 const petEl = document.getElementById('pet');
 const container = document.getElementById('pet-container');
@@ -28,6 +29,11 @@ const settingPetName = document.getElementById('setting-pet-name');
 const settingSystemPrompt = document.getElementById('setting-system-prompt');
 const settingAutoWebFallback = document.getElementById('setting-auto-web-fallback');
 const settingWebSearchTopK = document.getElementById('setting-web-search-topk');
+const settingTranslateModelMode = document.getElementById('setting-translate-model-mode');
+const settingTranslateCustom = document.getElementById('setting-translate-custom');
+const settingTranslateBaseUrl = document.getElementById('setting-translate-baseurl');
+const settingTranslateModel = document.getElementById('setting-translate-model');
+const settingTranslateApiKey = document.getElementById('setting-translate-apikey');
 const modelListEl = document.getElementById('model-list');
 const modelAddBtn = document.getElementById('model-add-btn');
 const modelEditForm = document.getElementById('model-edit-form');
@@ -192,6 +198,7 @@ function showSpeech(text, duration, persistent) {
   speechBubble.textContent = text;
   speechBubble.classList.remove('hidden');
   speechBubble.classList.toggle('clickable', !!persistent);
+  speechBubble.classList.toggle('wrap', text.length > SPEECH_WRAP_THRESHOLD);
   speechBubble.classList.remove('speech-pop');
   void speechBubble.offsetWidth;
   speechBubble.classList.add('speech-pop');
@@ -411,11 +418,17 @@ editModelSave.addEventListener('click', saveModelEdit);
 editModelCancel.addEventListener('click', closeModelEditForm);
 
 // --- Settings ---
+function updateTranslateSettingsVisibility() {
+  const isCustom = settingTranslateModelMode.value === 'custom';
+  settingTranslateCustom.classList.toggle('hidden', !isCustom);
+}
+
 function loadSettings() {
   const saved = localStorage.getItem('aiSettings');
   const settings = saved ? JSON.parse(saved) : {};
   const autoWebFallback = settings.autoWebFallback !== false;
   const webSearchTopK = clampWebSearchTopK(settings.webSearchTopK);
+  const translateModelMode = settings.translateModelMode === 'custom' ? 'custom' : 'same';
 
   if (saved) {
     settingPetName.value = settings.petName || '';
@@ -427,6 +440,11 @@ function loadSettings() {
 
   settingAutoWebFallback.checked = autoWebFallback;
   settingWebSearchTopK.value = String(webSearchTopK);
+  settingTranslateModelMode.value = translateModelMode;
+  settingTranslateBaseUrl.value = settings.translateBaseUrl || '';
+  settingTranslateModel.value = settings.translateModel || '';
+  settingTranslateApiKey.value = settings.translateApiKey || '';
+  updateTranslateSettingsVisibility();
   renderModelList();
   closeModelEditForm();
 }
@@ -453,10 +471,32 @@ function saveSettings() {
     petName: settingPetName.value.trim(),
     systemPrompt: settingSystemPrompt.value.trim(),
     autoWebFallback: !!settingAutoWebFallback.checked,
-    webSearchTopK: clampWebSearchTopK(settingWebSearchTopK.value)
+    webSearchTopK: clampWebSearchTopK(settingWebSearchTopK.value),
+    translateModelMode: settingTranslateModelMode.value === 'custom' ? 'custom' : 'same',
+    translateBaseUrl: settingTranslateBaseUrl.value.trim(),
+    translateModel: settingTranslateModel.value.trim(),
+    translateApiKey: settingTranslateApiKey.value.trim()
   };
   localStorage.setItem('aiSettings', JSON.stringify(settings));
   closeSettings();
+}
+
+function getTranslateModelConfig() {
+  const saved = localStorage.getItem('aiSettings');
+  const settings = saved ? JSON.parse(saved) : {};
+  const mode = settings.translateModelMode === 'custom' ? 'custom' : 'same';
+  if (mode === 'same') return getSettings();
+
+  const baseUrl = (settings.translateBaseUrl || '').trim();
+  const model = (settings.translateModel || '').trim();
+  const apiKey = (settings.translateApiKey || '').trim();
+  if (!baseUrl || !model || !apiKey) return null;
+  return {
+    baseUrl,
+    model,
+    apiKey,
+    provider: 'openai'
+  };
 }
 
 function openSettings() {
@@ -1392,6 +1432,7 @@ window.addEventListener('keydown', (e) => {
 // --- Settings events ---
 settingSave.addEventListener('click', saveSettings);
 settingCancel.addEventListener('click', closeSettings);
+settingTranslateModelMode.addEventListener('change', updateTranslateSettingsVisibility);
 settingsModal.querySelector('.settings-backdrop').addEventListener('click', closeSettings);
 reminderCenterClose.addEventListener('click', closeReminderCenter);
 reminderCenter.querySelector('.monitor-backdrop').addEventListener('click', closeReminderCenter);
@@ -1406,43 +1447,107 @@ speechBubble.addEventListener('click', () => {
 });
 
 // --- Translate / Explain selection ---
+function containsChinese(text) {
+  return /[\u4e00-\u9fff]/.test(text || '');
+}
+
+function needsChineseExplainRepair(inputText, outputText) {
+  if (!containsChinese(inputText)) return false;
+  const out = (outputText || '').trim();
+  if (!out) return true;
+  const tonePinyinPattern = /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/;
+  const compactChinesePattern = /（[^）]+）：.+/;
+  return !(compactChinesePattern.test(out) && tonePinyinPattern.test(out));
+}
+
+function formatEnglishTranslationResult(inputText, outputText) {
+  const source = (inputText || '').trim();
+  if (!source) return (outputText || '').trim();
+
+  let out = (outputText || '').replace(/\s+/g, ' ').trim();
+  if (!out) return `${source}：`;
+
+  out = out.replace(/^["“”'`]+|["“”'`]+$/g, '');
+  out = out.replace(/^(翻译|译文|中文翻译|结果)\s*[：:]\s*/i, '');
+
+  const pair = out.match(/^(.+?)[：:]\s*(.+)$/);
+  if (pair) {
+    const left = pair[1].trim();
+    const right = pair[2].trim();
+    if (left.toLowerCase() === source.toLowerCase() || /^[A-Za-z0-9 _./-]+$/.test(left)) {
+      out = right;
+    }
+  }
+
+  return `${source}：${out}`;
+}
+
 async function handleTranslateSelection(text) {
   if (!text) {
     showSpeech('请先 Cmd+C 复制文字', 2500);
     return;
   }
 
-  const settings = getSettings();
-  if (!settings || !settings.baseUrl || !settings.model || !settings.apiKey) {
-    showSpeech('请先配置模型', 2000);
+  const translateConfig = getTranslateModelConfig();
+  if (!translateConfig || !translateConfig.baseUrl || !translateConfig.model || !translateConfig.apiKey) {
+    showSpeech('请先配置翻译模型', 2000);
     return;
   }
 
   showSpeech('翻译中…', 0);
 
   const prompt = `你是一个精准的翻译助手。请对以下文字进行处理：
-- 如果是英文或其他外语，格式为：原文: 中文翻译（如 happy: 快乐的）
-- 如果是中文，简要解释其含义，并为每个汉字标注拼音（格式：汉(hàn)字(zì)）
+- 如果是英文或其他外语，严格输出：英文原词：中文翻译
+- 如果是中文，严格输出：中文词（带声调拼音）：中文解释
 
-要求：只输出结果，不要任何额外说明，确保内容完整不要截断。
+输出要求：
+- 只输出一行结果，不要额外说明
+- 中文场景必须同时包含拼音和解释，拼音放在全角括号中并带声调（如 cèshì）
+- 统一使用中文冒号“：”
+
+英文示例：min：最小
+中文示例：测试（cèshì）：用于验证功能是否正常
 
 原文："""${text}"""`;
 
   try {
     const result = await window.electronAPI.chat({
-      baseUrl: settings.baseUrl,
-      model: settings.model,
-      apiKey: settings.apiKey,
-      provider: settings.provider,
+      baseUrl: translateConfig.baseUrl,
+      model: translateConfig.model,
+      apiKey: translateConfig.apiKey,
+      provider: translateConfig.provider,
       messages: [{ role: 'user', content: prompt }]
     });
 
     if (result.success) {
-      const reply = result.content;
+      let reply = result.content;
+      if (needsChineseExplainRepair(text, reply)) {
+        const repairPrompt = `你上一条输出格式不符合要求。请仅按以下格式重写，不要添加其他内容：
+中文词（带声调拼音）：中文解释
+
+要求：
+- 使用中文冒号“：”
+- 拼音必须带声调（如 cèshì）
+
+原文："""${text}"""
+你上一条输出："""${reply}"""`;
+        const repaired = await window.electronAPI.chat({
+          baseUrl: translateConfig.baseUrl,
+          model: translateConfig.model,
+          apiKey: translateConfig.apiKey,
+          provider: translateConfig.provider,
+          messages: [{ role: 'user', content: repairPrompt }]
+        });
+        if (repaired.success && repaired.content) {
+          reply = repaired.content;
+        }
+      }
+      if (!containsChinese(text)) {
+        reply = formatEnglishTranslationResult(text, reply);
+      }
       const preview = reply.replace(/\n+/g, ' ');
       showSpeech(preview, 10000);
-      const trimmedText = text.length > 30 ? text.slice(0, 30) + '…' : text;
-      appendTranslateMessage(`「${trimmedText}」\n${reply}`);
+      appendTranslateMessage(reply);
     } else {
       showSpeech('翻译失败', 2000);
     }

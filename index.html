@@ -165,6 +165,19 @@
       <label>模型列表</label>
       <div id="model-list"></div>
       <button id="model-add-btn" class="model-add-btn">+ 添加模型</button>
+      <label>翻译模型</label>
+      <select id="setting-translate-model-mode">
+        <option value="same">跟随聊天模型</option>
+        <option value="custom">自定义本地小模型（OpenAI 兼容）</option>
+      </select>
+      <div id="setting-translate-custom" class="hidden">
+        <label>翻译 API Base URL</label>
+        <input type="text" id="setting-translate-baseurl" placeholder="http://127.0.0.1:11434/v1">
+        <label>翻译模型 ID</label>
+        <input type="text" id="setting-translate-model" placeholder="如: qwen2.5:7b">
+        <label>翻译 API Key</label>
+        <input type="password" id="setting-translate-apikey" placeholder="本地服务可填任意非空值">
+      </div>
       <div id="model-edit-form" class="hidden">
         <div class="model-edit-divider"></div>
         <label>显示名称</label>

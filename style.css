@@ -123,9 +123,17 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   white-space: nowrap;
   max-width: min(320px, 40vw);
-  overflow-wrap: break-word;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   pointer-events: none;
+}
+
+#speech-bubble.wrap {
+  white-space: normal;
+  min-width: 180px;
+  width: min(320px, 40vw);
+  max-width: min(320px, 40vw);
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 #speech-bubble::after {
@@ -644,6 +652,10 @@ html, body {
 }
 
 #model-edit-form.hidden {
+  display: none;
+}
+
+#setting-translate-custom.hidden {
   display: none;
 }
 
