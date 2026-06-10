@@ -192,6 +192,10 @@ function showSpeech(text, duration, persistent) {
   speechBubble.textContent = text;
   speechBubble.classList.remove('hidden');
   speechBubble.classList.toggle('clickable', !!persistent);
+  speechBubble.classList.remove('speech-pop');
+  void speechBubble.offsetWidth;
+  speechBubble.classList.add('speech-pop');
+  setTimeout(() => speechBubble.classList.remove('speech-pop'), 300);
   clearTimeout(speechTimeout);
   if (persistent || !duration || duration <= 0) return;
   speechTimeout = setTimeout(() => {

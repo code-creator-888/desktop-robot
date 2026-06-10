@@ -124,7 +124,6 @@ html, body {
   white-space: nowrap;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   pointer-events: none;
-  animation: speech-pop-in 0.3s ease-out;
 }
 
 #speech-bubble::after {
@@ -147,6 +146,10 @@ html, body {
 #speech-bubble.clickable {
   pointer-events: auto;
   cursor: pointer;
+}
+
+#speech-bubble.speech-pop {
+  animation: speech-pop-in 0.3s ease-out;
 }
 
 #speech-bubble.reminder-alert {
