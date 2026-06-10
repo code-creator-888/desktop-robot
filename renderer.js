@@ -709,8 +709,10 @@ function addManualReminder() {
 
 function triggerReminderAlert(item) {
   showSpeech(`提醒：${item.title}`, 0, true);
-  speechBubble.classList.add('reminder-alert');
-  setTimeout(() => speechBubble.classList.remove('reminder-alert'), 3200);
+  setTimeout(() => {
+    speechBubble.classList.add('reminder-alert');
+    setTimeout(() => speechBubble.classList.remove('reminder-alert'), 3600);
+  }, 300);
 
   petEl.classList.remove('idle');
   petEl.classList.add('bounce');

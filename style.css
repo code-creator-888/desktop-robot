@@ -153,8 +153,8 @@ html, body {
 }
 
 #speech-bubble.reminder-alert {
-  animation: speech-pop-in 0.3s ease-out, reminder-glow-pulse 0.8s ease-in-out 4;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 12px rgba(255, 87, 34, 0.5);
+  animation: reminder-glow-pulse 0.9s ease-in-out 4;
+  border: 1.5px solid rgba(255, 80, 0, 0.7);
 }
 
 @keyframes speech-pop-in {
@@ -163,8 +163,12 @@ html, body {
 }
 
 @keyframes reminder-glow-pulse {
-  0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 12px rgba(255, 87, 34, 0.5); }
-  50% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 24px rgba(255, 87, 34, 0.8); }
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 6px rgba(255, 80, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 28px rgba(255, 80, 0, 1), 0 0 48px rgba(255, 120, 0, 0.6);
+  }
 }
 
 #chat-panel {
