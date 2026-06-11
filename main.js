@@ -10,7 +10,14 @@ const util = require('util');
 const { dedupeResults, normalizeWebSearchPayload } = require('./lib/web-fallback');
 const execAsync = util.promisify(exec);
 const execFileAsync = util.promisify(execFile);
-const { uIOhook } = require('uiohook-napi');
+
+let uIOhook = null;
+let uIOhookStarted = false;
+try {
+  ({ uIOhook } = require('uiohook-napi'));
+} catch (error) {
+  console.warn('[startup] uiohook-napi unavailable; global shortcuts and pet hit-testing are disabled:', error.message);
+}
 
 let translateInProgress = false;
 let cmdPressed = false, shiftPressed = false;
@@ -113,19 +120,6 @@ async function buildPetMenuAsync() {
 app.whenReady().then(() => {
   createWindow();
 
-  // Translate shortcut: Cmd+Shift+T
-  uIOhook.on('keydown', (e) => {
-    if (e.keycode === 3675) cmdPressed = true;
-    if (e.keycode === 42) shiftPressed = true;
-    if (e.keycode === 20 && cmdPressed && shiftPressed) {
-      handleTranslateShortcut();
-    }
-  });
-  uIOhook.on('keyup', (e) => {
-    if (e.keycode === 3675) cmdPressed = false;
-    if (e.keycode === 42) shiftPressed = false;
-  });
-
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);
   tray.setToolTip('桌面宠物');
@@ -140,33 +134,49 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 
-  uIOhook.on('mousemove', (e) => {
-    lastMouseX = e.x;
-    lastMouseY = e.y;
-  });
+  if (uIOhook) {
+    // Translate shortcut: Cmd+Shift+T
+    uIOhook.on('keydown', (e) => {
+      if (e.keycode === 3675) cmdPressed = true;
+      if (e.keycode === 42) shiftPressed = true;
+      if (e.keycode === 20 && cmdPressed && shiftPressed) {
+        handleTranslateShortcut();
+      }
+    });
+    uIOhook.on('keyup', (e) => {
+      if (e.keycode === 3675) cmdPressed = false;
+      if (e.keycode === 42) shiftPressed = false;
+    });
 
-  uIOhook.on('mousedown', (e) => {
-    if (e.button !== 1) return; // uiohook: button 1 = left
-    if (!petBounds || !win) return;
-    const { x, y, width, height } = petBounds;
-    if (e.x >= x && e.x <= x + width && e.y >= y && e.y <= y + height) {
-      win.webContents.send('pet-click');
-    }
-  });
+    uIOhook.on('mousemove', (e) => {
+      lastMouseX = e.x;
+      lastMouseY = e.y;
+    });
 
-  uIOhook.on('mouseup', async (e) => {
-    if (e.button !== 2) return;
-    if (!petBounds || !win) return;
-    const { x, y, width, height } = petBounds;
-    if (e.x >= x && e.x <= x + width && e.y >= y && e.y <= y + height) {
-      win.webContents.send('set-ignore-mouse-events', false);
-      win.setIgnoreMouseEvents(false);
-      const menu = await buildPetMenuAsync();
-      menu.popup({ window: win, x: e.x - win.getBounds().x, y: e.y - win.getBounds().y });
-    }
-  });
+    uIOhook.on('mousedown', (e) => {
+      if (e.button !== 1) return; // uiohook: button 1 = left
+      if (!petBounds || !win) return;
+      const { x, y, width, height } = petBounds;
+      if (e.x >= x && e.x <= x + width && e.y >= y && e.y <= y + height) {
+        win.webContents.send('pet-click');
+      }
+    });
 
-  uIOhook.start();
+    uIOhook.on('mouseup', async (e) => {
+      if (e.button !== 2) return;
+      if (!petBounds || !win) return;
+      const { x, y, width, height } = petBounds;
+      if (e.x >= x && e.x <= x + width && e.y >= y && e.y <= y + height) {
+        win.webContents.send('set-ignore-mouse-events', false);
+        win.setIgnoreMouseEvents(false);
+        const menu = await buildPetMenuAsync();
+        menu.popup({ window: win, x: e.x - win.getBounds().x, y: e.y - win.getBounds().y });
+      }
+    });
+
+    uIOhook.start();
+    uIOhookStarted = true;
+  }
 });
 
 ipcMain.on('set-ignore-mouse-events', (event, ignore) => {
@@ -690,7 +700,9 @@ ipcMain.handle('get-port-list', () => {
 });
 
 app.on('before-quit', () => {
-  uIOhook.stop();
+  if (uIOhook && uIOhookStarted) {
+    uIOhook.stop();
+  }
   // Force exit after 3s in case hung child processes block the event loop
   setTimeout(() => app.exit(0), 3000).unref();
 });
