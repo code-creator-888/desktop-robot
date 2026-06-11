@@ -143,6 +143,8 @@ html, body {
   max-width: min(420px, 55vw);
   overflow-wrap: break-word;
   word-break: normal;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 #speech-bubble::after {

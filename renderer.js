@@ -210,7 +210,7 @@ function showSpeech(text, duration, persistent, type) {
   if (persistent || !duration || duration <= 0) return;
   speechTimeout = setTimeout(() => {
     speechBubble.classList.add('hidden');
-    speechBubble.classList.remove('clickable');
+    speechBubble.classList.remove('clickable', 'news');
   }, duration);
 }
 
@@ -1443,10 +1443,12 @@ reminderAddBtn.addEventListener('click', addManualReminder);
 reminderAddTime.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addManualReminder();
 });
-speechBubble.addEventListener('click', () => {
-  if (!speechBubble.classList.contains('clickable')) return;
+speechBubble.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (!speechBubble.classList.contains('clickable') && !speechBubble.classList.contains('news')) return;
   speechBubble.classList.add('hidden');
-  speechBubble.classList.remove('clickable');
+  speechBubble.classList.remove('clickable', 'news');
+  clearTimeout(speechTimeout);
 });
 
 // --- Translate / Explain selection ---
@@ -1633,6 +1635,22 @@ let clickTimer = null;
 window.electronAPI.onPetClick(() => {
   clickCount++;
   console.log('[click] pet-click, clickCount=', clickCount);
+
+  // If news bubble is showing, refresh immediately
+  if (!speechBubble.classList.contains('hidden') && speechBubble.classList.contains('news')) {
+    clickCount = 0;
+    clearTimeout(clickTimer);
+    (async () => {
+      const fn = SINGLE_CLICK_LINES[0];
+      const result = await fn();
+      if (result && typeof result === 'object' && result.text) {
+        showSpeech(result.text, result.duration || 3500, false, result.type);
+      } else {
+        showSpeech(result, 3500);
+      }
+    })();
+    return;
+  }
 
   clearTimeout(clickTimer);
   clickTimer = setTimeout(async () => {
