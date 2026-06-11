@@ -1,0 +1,42 @@
+renderer.js
+  936ffdcfb72a67ca 187,189,1571-1614,1621-1640,1642-1643,1646,1648,1650,1652-1668
+preload.js
+  936ffdcfb72a67ca 19-20
+main.js
+  936ffdcfb72a67ca 148-156
+style.css
+  936ffdcfb72a67ca 1502-1514,1537-1553
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.22",
+  "base_commit_sha": "697acf3fb7eb8ea66a2646aec8cb949549a64cf2",
+  "prompts": {
+    "936ffdcfb72a67ca": {
+      "agent_id": {
+        "tool": "qoder",
+        "id": "b63f79b7-1175-4091-bd4e-ff8ce26df8d8",
+        "model": "qoder-model"
+      },
+      "human_author": "Anonymous",
+      "messages": [],
+      "total_additions": 195,
+      "total_deletions": 62,
+      "accepted_lines": 129,
+      "overriden_lines": 5
+    },
+    "f5957680b23c0176": {
+      "agent_id": {
+        "tool": "qoder",
+        "id": "a7031780-7ff3-43e0-b803-df570df8c14b",
+        "model": "qoder-model"
+      },
+      "human_author": "Anonymous",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 6,
+      "overriden_lines": 0
+    }
+  }
+}
