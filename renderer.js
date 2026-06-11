@@ -184,7 +184,9 @@ function render() {
   petEl.style.width = pet.size + 'px';
   petEl.style.height = pet.size + 'px';
 
+  const isSpinning = petEl.classList.contains('triple-click-spin');
   petEl.className = '';
+  if (isSpinning) petEl.classList.add('triple-click-spin');
   if (facingLeft) petEl.classList.add('flipped');
   if (behavior === 'walk') petEl.classList.add('walking');
   if (behavior === 'idle') petEl.classList.add('idle');
@@ -1565,6 +1567,104 @@ function appendTranslateMessage(content) {
 }
 
 window.electronAPI.onTranslateSelection(handleTranslateSelection);
+
+// --- Click interaction ---
+const SINGLE_CLICK_LINES = [
+  () => { const now = new Date(); return `现在是 ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}，主人在干嘛呢？`; },
+  () => `今天是 ${new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}`,
+  () => '干得漂亮！继续保持，主人！（竖起大拇指）',
+  () => '（偷偷充电中）别打扰我，我在变强！',
+  () => '主人，记得喝水哦，人类需要补水的。',
+  () => '休息一下吧，盯着屏幕太久对眼睛不好。',
+  () => '你知道吗？章鱼有三颗心脏。',
+  () => '冷知识：蜂鸟是唯一能倒着飞的鸟类。',
+  () => '你知道吗？人类大脑的存储容量约等于 2.5 PB。',
+  () => '（扭扭腰）主人你好呀~',
+  () => 'Bug 不是 Bug，是 undocumented feature。',
+  () => '代码写得越多，注释就越少……',
+  async () => {
+    const pending = reminderItems.filter(i => i.status !== 'done');
+    if (pending.length === 0) return '今天没有待办提醒，轻松一下吧！';
+    const next = [...pending].sort((a, b) => new Date(a.nextTriggerAt || a.dueAt) - new Date(b.nextTriggerAt || b.dueAt))[0];
+    return `你有 ${pending.length} 条待办，最近一条：${next.title}`;
+  },
+  async () => {
+    const stats = await window.electronAPI.getSystemStats().catch(() => null);
+    if (!stats || stats.error) return '读取系统状态失败，我也不知道发生了啥。';
+    return `CPU ${stats.cpu}，内存 ${stats.memPercent}，${parseInt(stats.cpu) > 70 ? '有点热，注意散热！' : '运行还不错~'}`;
+  },
+  async () => {
+    const tips = [
+      'Cmd+Space 打开 Spotlight 搜索任意内容',
+      'Cmd+Tab 快速切换应用',
+      'Cmd+` 在同一应用的窗口间切换',
+      'Cmd+Shift+3 截全屏，Cmd+Shift+4 截区域',
+      'Ctrl+← / → 快速切换 Mission Control 空间',
+      'Cmd+W 关闭当前标签，Cmd+Q 退出应用',
+    ];
+    return '技巧：' + tips[Math.floor(Math.random() * tips.length)];
+  },
+];
+
+const DOUBLE_CLICK_LINES = [
+  '（转圈圈）主人！我最喜欢你了！♥',
+  '（发射爱心光线）主人你是最棒的！',
+  '（害羞地捂脸）人家才不是特别喜欢你呢……才不是……',
+  '（兴奋地跳起来）主人终于来陪我玩了！！',
+];
+const DOUBLE_CLICK_WINDOW_MS = 450;
+const DOUBLE_CLICK_EFFECTS = [
+  { className: 'triple-click-spin', durationMs: 650, hearts: true },
+  { className: 'double-click-bounce', durationMs: 520, hearts: false },
+  { className: 'double-click-wiggle', durationMs: 560, hearts: false },
+];
+
+let clickCount = 0;
+let clickTimer = null;
+
+window.electronAPI.onPetClick(() => {
+  clickCount++;
+  console.log('[click] pet-click, clickCount=', clickCount);
+
+  clearTimeout(clickTimer);
+  clickTimer = setTimeout(async () => {
+    const count = clickCount;
+    clickCount = 0;
+    console.log('[click] timer fired, count=', count);
+
+    if (count === 1) {
+      const fn = SINGLE_CLICK_LINES[Math.floor(Math.random() * SINGLE_CLICK_LINES.length)];
+      const msg = await fn();
+      showSpeech(msg, 3500);
+    } else if (count >= 2) {
+      const line = DOUBLE_CLICK_LINES[Math.floor(Math.random() * DOUBLE_CLICK_LINES.length)];
+      const effect = DOUBLE_CLICK_EFFECTS[Math.floor(Math.random() * DOUBLE_CLICK_EFFECTS.length)];
+      showSpeech(line, 4000);
+      petEl.classList.remove('idle');
+      petEl.classList.add(effect.className);
+      if (effect.hearts) spawnHearts();
+      setTimeout(() => {
+        petEl.classList.remove(effect.className);
+        render();
+      }, effect.durationMs);
+    }
+  }, DOUBLE_CLICK_WINDOW_MS);
+});
+
+function spawnHearts() {
+  const count = 5;
+  for (let i = 0; i < count; i++) {
+    const heart = document.createElement('div');
+    heart.className = 'floating-heart';
+    heart.textContent = '♥';
+    const offsetX = (Math.random() - 0.5) * 60;
+    heart.style.setProperty('--hx', offsetX + 'px');
+    heart.style.left = '50%';
+    heart.style.bottom = '70px';
+    container.appendChild(heart);
+    heart.addEventListener('animationend', () => heart.remove(), { once: true });
+  }
+}
 
 // --- Init ---
 reminderItems = loadReminderItems();

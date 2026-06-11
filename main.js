@@ -145,6 +145,15 @@ app.whenReady().then(() => {
     lastMouseY = e.y;
   });
 
+  uIOhook.on('mousedown', (e) => {
+    if (e.button !== 1) return; // uiohook: button 1 = left
+    if (!petBounds || !win) return;
+    const { x, y, width, height } = petBounds;
+    if (e.x >= x && e.x <= x + width && e.y >= y && e.y <= y + height) {
+      win.webContents.send('pet-click');
+    }
+  });
+
   uIOhook.on('mouseup', async (e) => {
     if (e.button !== 2) return;
     if (!petBounds || !win) return;

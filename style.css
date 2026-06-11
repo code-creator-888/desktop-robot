@@ -1499,3 +1499,55 @@ html, body {
   0%, 100% { opacity: 0.35; transform: translateX(-50%) scale(0.95); }
   50% { opacity: 0.8; transform: translateX(-50%) scale(1.05); }
 }
+
+/* Triple-click spin */
+#pet.triple-click-spin {
+  animation: triple-spin 0.6s ease-in-out;
+}
+
+@keyframes triple-spin {
+  0%   { transform: scale(1) rotate(0deg) translateY(0); }
+  30%  { transform: scale(1.2) rotate(180deg) translateY(-12px); }
+  60%  { transform: scale(1.1) rotate(330deg) translateY(-6px); }
+  100% { transform: scale(1) rotate(360deg) translateY(0); }
+}
+
+#pet.double-click-bounce {
+  animation: double-click-bounce 0.52s ease-in-out;
+}
+
+@keyframes double-click-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-18px) scale(1.08); }
+  60% { transform: translateY(2px) scale(0.98); }
+}
+
+#pet.double-click-wiggle {
+  animation: double-click-wiggle 0.56s ease-in-out;
+}
+
+@keyframes double-click-wiggle {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  20% { transform: rotate(-10deg) translateY(-2px); }
+  40% { transform: rotate(10deg) translateY(-2px); }
+  60% { transform: rotate(-8deg) translateY(0); }
+  80% { transform: rotate(8deg) translateY(0); }
+}
+
+/* Floating heart */
+.floating-heart {
+  position: absolute;
+  font-size: 18px;
+  color: #ff4d79;
+  pointer-events: none;
+  animation: heart-float 1.2s ease-out forwards;
+  transform: translateX(-50%);
+  z-index: 200;
+  text-shadow: 0 0 6px rgba(255, 77, 121, 0.5);
+}
+
+@keyframes heart-float {
+  0%   { opacity: 1; transform: translateX(calc(-50% + var(--hx, 0px))) translateY(0) scale(0.6); }
+  40%  { opacity: 1; transform: translateX(calc(-50% + var(--hx, 0px))) translateY(-40px) scale(1.1); }
+  100% { opacity: 0; transform: translateX(calc(-50% + var(--hx, 0px))) translateY(-80px) scale(0.8); }
+}
