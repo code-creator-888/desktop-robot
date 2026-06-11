@@ -184,9 +184,9 @@ function render() {
   petEl.style.width = pet.size + 'px';
   petEl.style.height = pet.size + 'px';
 
-  const isSpinning = petEl.classList.contains('triple-click-spin');
+  const dblEffect = ['dbl-spin', 'dbl-rocket', 'dbl-jelly'].find(c => petEl.classList.contains(c));
   petEl.className = '';
-  if (isSpinning) petEl.classList.add('triple-click-spin');
+  if (dblEffect) petEl.classList.add(dblEffect);
   if (facingLeft) petEl.classList.add('flipped');
   if (behavior === 'walk') petEl.classList.add('walking');
   if (behavior === 'idle') petEl.classList.add('idle');
@@ -196,11 +196,12 @@ function render() {
   container.classList.toggle('thinking-tech', isThinking);
 }
 
-function showSpeech(text, duration, persistent) {
+function showSpeech(text, duration, persistent, type) {
   speechBubble.textContent = text;
-  speechBubble.classList.remove('hidden');
+  speechBubble.classList.remove('hidden', 'wrap', 'news');
   speechBubble.classList.toggle('clickable', !!persistent);
-  speechBubble.classList.toggle('wrap', text.length > SPEECH_WRAP_THRESHOLD);
+  if (type === 'news') speechBubble.classList.add('news');
+  else speechBubble.classList.toggle('wrap', text.length > SPEECH_WRAP_THRESHOLD);
   speechBubble.classList.remove('speech-pop');
   void speechBubble.offsetWidth;
   speechBubble.classList.add('speech-pop');
@@ -1570,53 +1571,60 @@ window.electronAPI.onTranslateSelection(handleTranslateSelection);
 
 // --- Click interaction ---
 const SINGLE_CLICK_LINES = [
-  () => { const now = new Date(); return `现在是 ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}，主人在干嘛呢？`; },
-  () => `今天是 ${new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}`,
-  () => '干得漂亮！继续保持，主人！（竖起大拇指）',
-  () => '（偷偷充电中）别打扰我，我在变强！',
-  () => '主人，记得喝水哦，人类需要补水的。',
-  () => '休息一下吧，盯着屏幕太久对眼睛不好。',
-  () => '你知道吗？章鱼有三颗心脏。',
-  () => '冷知识：蜂鸟是唯一能倒着飞的鸟类。',
-  () => '你知道吗？人类大脑的存储容量约等于 2.5 PB。',
-  () => '（扭扭腰）主人你好呀~',
-  () => 'Bug 不是 Bug，是 undocumented feature。',
-  () => '代码写得越多，注释就越少……',
   async () => {
-    const pending = reminderItems.filter(i => i.status !== 'done');
-    if (pending.length === 0) return '今天没有待办提醒，轻松一下吧！';
-    const next = [...pending].sort((a, b) => new Date(a.nextTriggerAt || a.dueAt) - new Date(b.nextTriggerAt || b.dueAt))[0];
-    return `你有 ${pending.length} 条待办，最近一条：${next.title}`;
-  },
-  async () => {
-    const stats = await window.electronAPI.getSystemStats().catch(() => null);
-    if (!stats || stats.error) return '读取系统状态失败，我也不知道发生了啥。';
-    return `CPU ${stats.cpu}，内存 ${stats.memPercent}，${parseInt(stats.cpu) > 70 ? '有点热，注意散热！' : '运行还不错~'}`;
-  },
-  async () => {
-    const tips = [
-      'Cmd+Space 打开 Spotlight 搜索任意内容',
-      'Cmd+Tab 快速切换应用',
-      'Cmd+` 在同一应用的窗口间切换',
-      'Cmd+Shift+3 截全屏，Cmd+Shift+4 截区域',
-      'Ctrl+← / → 快速切换 Mission Control 空间',
-      'Cmd+W 关闭当前标签，Cmd+Q 退出应用',
-    ];
-    return '技巧：' + tips[Math.floor(Math.random() * tips.length)];
+    try {
+      const res = await window.electronAPI.getHotNews(30);
+      if (!res.success || !res.headlines || res.headlines.length === 0) return '新闻获取失败，下次再试吧~';
+      const pick = res.headlines[Math.floor(Math.random() * res.headlines.length)];
+      const idx = res.headlines.indexOf(pick) + 1;
+      return { text: `📰 ${pick}`, duration: 6000, type: 'news' };
+    } catch { return '新闻获取失败，下次再试吧~'; }
   },
 ];
 
 const DOUBLE_CLICK_LINES = [
-  '（转圈圈）主人！我最喜欢你了！♥',
-  '（发射爱心光线）主人你是最棒的！',
-  '（害羞地捂脸）人家才不是特别喜欢你呢……才不是……',
-  '（兴奋地跳起来）主人终于来陪我玩了！！',
+  () => '（转圈圈）主人！我最喜欢你了！♥',
+  () => '（发射爱心光线）主人你是最棒的！',
+  () => '（害羞地捂脸）人家才不是特别喜欢你呢……才不是……',
+  () => '（兴奋地跳起来）主人终于来陪我玩了！！',
+  () => {
+    const h = new Date().getHours();
+    if (h < 6) return '（揉眼睛）主人还没睡吗……心疼你……';
+    if (h < 12) return '（元气满满）早上好！今天也要加油哦！☀';
+    if (h < 14) return '（摸摸肚子）主人吃过午饭了吗？别饿着！';
+    if (h < 18) return '（伸懒腰）下午了呢，要不要休息一下？';
+    if (h < 22) return '（靠过来）晚上陪主人加班，我最强！';
+    return '（打哈欠）主人该睡觉啦，熬夜对身体不好哦~';
+  },
+  async () => {
+    const stats = await window.electronAPI.getSystemStats().catch(() => null);
+    if (!stats || stats.error) return '（竖起天线）系统一切正常！嗯……大概吧。';
+    const cpu = parseInt(stats.cpu);
+    if (cpu > 80) return `（冒烟）CPU ${stats.cpu}%！！主人快关几个程序吧，我要热化了！🔥`;
+    if (cpu > 50) return `（擦汗）CPU ${stats.cpu}%，还行还行，我还能撑住！`;
+    return `（得意）CPU 才 ${stats.cpu}%，多亏我帮你监控着呢~`;
+  },
+  () => {
+    const moods = ['超开心', '有点小激动', '感动得不行', '幸福到冒泡', '开心到原地起飞'];
+    const actions = ['转圈圈', '蹦蹦跳跳', '挥舞小手', '闪亮登场', '撒花花'];
+    return `（${actions[Math.floor(Math.random() * actions.length)]}）主人连点我！我${moods[Math.floor(Math.random() * moods.length)]}！♥`;
+  },
+  () => {
+    const picks = [
+      '主人是不是想我了？我一直在哦！',
+      '双击！这是爱的信号对吧！对吧！',
+      '（脸红）主人不要一直戳我啦……虽然也不讨厌……',
+      '收到主人的双倍爱意！电量充满！⚡',
+      '嘿嘿，被主人关注的感觉真好~',
+    ];
+    return picks[Math.floor(Math.random() * picks.length)];
+  },
 ];
 const DOUBLE_CLICK_WINDOW_MS = 450;
 const DOUBLE_CLICK_EFFECTS = [
-  { className: 'triple-click-spin', durationMs: 650, hearts: true },
-  { className: 'double-click-bounce', durationMs: 520, hearts: false },
-  { className: 'double-click-wiggle', durationMs: 560, hearts: false },
+  { className: 'dbl-spin',   durationMs: 900, particles: 'hearts',  glowColor: 'rgba(255,77,121,0.6)' },
+  { className: 'dbl-rocket', durationMs: 1000, particles: 'sparkles', glowColor: 'rgba(255,215,0,0.6)', impact: true },
+  { className: 'dbl-jelly',  durationMs: 850, particles: 'mixed',   glowColor: 'rgba(100,200,255,0.6)' },
 ];
 
 let clickCount = 0;
@@ -1634,36 +1642,106 @@ window.electronAPI.onPetClick(() => {
 
     if (count === 1) {
       const fn = SINGLE_CLICK_LINES[Math.floor(Math.random() * SINGLE_CLICK_LINES.length)];
-      const msg = await fn();
-      showSpeech(msg, 3500);
+      const result = await fn();
+      if (result && typeof result === 'object' && result.text) {
+        showSpeech(result.text, result.duration || 3500, false, result.type);
+      } else {
+        showSpeech(result, 3500);
+      }
     } else if (count >= 2) {
-      const line = DOUBLE_CLICK_LINES[Math.floor(Math.random() * DOUBLE_CLICK_LINES.length)];
+      const lineFn = DOUBLE_CLICK_LINES[Math.floor(Math.random() * DOUBLE_CLICK_LINES.length)];
+      const line = await lineFn();
       const effect = DOUBLE_CLICK_EFFECTS[Math.floor(Math.random() * DOUBLE_CLICK_EFFECTS.length)];
       showSpeech(line, 4000);
       petEl.classList.remove('idle');
       petEl.classList.add(effect.className);
-      if (effect.hearts) spawnHearts();
+
+      // Screen shake
+      container.classList.add('shake');
+      setTimeout(() => container.classList.remove('shake'), 500);
+
+      // Glow ring
+      spawnGlowRing(effect.glowColor);
+
+      // Particles
+      if (effect.particles === 'hearts') spawnHearts(7);
+      else if (effect.particles === 'sparkles') spawnSparkles(10);
+      else if (effect.particles === 'mixed') { spawnHearts(4); spawnSparkles(6); }
+
+      // Impact ring for bounce
+      if (effect.impact) {
+        setTimeout(() => spawnImpactRing(), 520);
+      }
+
       setTimeout(() => {
         petEl.classList.remove(effect.className);
+        petEl.style.removeProperty('filter');
         render();
       }, effect.durationMs);
     }
   }, DOUBLE_CLICK_WINDOW_MS);
 });
 
-function spawnHearts() {
-  const count = 5;
+function spawnHearts(count = 5) {
   for (let i = 0; i < count; i++) {
     const heart = document.createElement('div');
     heart.className = 'floating-heart';
-    heart.textContent = '♥';
-    const offsetX = (Math.random() - 0.5) * 60;
+    heart.textContent = ['♥', '♡', '❤'][Math.floor(Math.random() * 3)];
+    const offsetX = (Math.random() - 0.5) * 80;
     heart.style.setProperty('--hx', offsetX + 'px');
     heart.style.left = '50%';
     heart.style.bottom = '70px';
+    heart.style.animationDelay = (i * 0.08) + 's';
+    heart.style.fontSize = (14 + Math.random() * 10) + 'px';
     container.appendChild(heart);
     heart.addEventListener('animationend', () => heart.remove(), { once: true });
   }
+}
+
+function spawnSparkles(count = 10) {
+  const chars = ['✦', '✧', '⋆', '★', '✶', '✸'];
+  const colors = ['#FFD700', '#FF69B4', '#00E5FF', '#FF6B6B', '#A78BFA', '#34D399'];
+  for (let i = 0; i < count; i++) {
+    const spark = document.createElement('div');
+    spark.className = 'sparkle-particle';
+    spark.textContent = chars[Math.floor(Math.random() * chars.length)];
+    spark.style.color = colors[Math.floor(Math.random() * colors.length)];
+    spark.style.fontSize = (8 + Math.random() * 14) + 'px';
+    spark.style.left = '50%';
+    spark.style.bottom = '50px';
+
+    const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.5;
+    const dist = 30 + Math.random() * 40;
+    const tx = Math.cos(angle) * dist;
+    const ty = Math.sin(angle) * dist;
+    const tx2 = tx * 1.5;
+    const ty2 = ty - 20;
+    spark.style.setProperty('--tx', tx + 'px');
+    spark.style.setProperty('--ty', ty + 'px');
+    spark.style.setProperty('--tx2', tx2 + 'px');
+    spark.style.setProperty('--ty2', ty2 + 'px');
+    spark.style.setProperty('--dur', (0.5 + Math.random() * 0.4) + 's');
+    spark.style.animationDelay = (i * 0.03) + 's';
+    spark.style.textShadow = `0 0 6px ${spark.style.color}`;
+
+    container.appendChild(spark);
+    spark.addEventListener('animationend', () => spark.remove(), { once: true });
+  }
+}
+
+function spawnGlowRing(color = 'rgba(255,77,121,0.6)') {
+  const ring = document.createElement('div');
+  ring.className = 'glow-ring';
+  ring.style.setProperty('--glow-color', color);
+  container.appendChild(ring);
+  ring.addEventListener('animationend', () => ring.remove(), { once: true });
+}
+
+function spawnImpactRing() {
+  const ring = document.createElement('div');
+  ring.className = 'impact-ring';
+  container.appendChild(ring);
+  ring.addEventListener('animationend', () => ring.remove(), { once: true });
 }
 
 // --- Init ---

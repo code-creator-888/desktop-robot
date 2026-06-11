@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   quit: () => ipcRenderer.send('quit-app'),
   chat: (config) => ipcRenderer.invoke('chat', config),
   webSearch: (payload) => ipcRenderer.invoke('web-search', payload),
+  getHotNews: (count) => ipcRenderer.invoke('get-hot-news', count),
   getEnvApiKey: () => ipcRenderer.invoke('get-env-api-key'),
   getEnvConfig: () => ipcRenderer.invoke('get-env-config'),
   getSystemStats: () => ipcRenderer.invoke('get-system-stats'),

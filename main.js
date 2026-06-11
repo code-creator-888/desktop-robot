@@ -350,6 +350,35 @@ ipcMain.handle('web-search', async (event, payload) => {
   }
 });
 
+ipcMain.handle('get-hot-news', async (_event, count = 3) => {
+  try {
+    const url = new URL('https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc');
+    const json = await new Promise((resolve, reject) => {
+      const req = https.get(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+      }, (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(data);
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}`));
+          }
+        });
+      });
+      req.setTimeout(8000, () => req.destroy(new Error('News timeout')));
+      req.on('error', reject);
+    });
+    const parsed = JSON.parse(json);
+    const items = (parsed.data || []).slice(0, Math.min(count, 30));
+    if (items.length === 0) return { success: false, error: 'No news items' };
+    return { success: true, headlines: items.map(i => i.Title) };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('get-env-api-key', () => {
   return process.env.ANTHROPIC_API_KEY || '';
 });
