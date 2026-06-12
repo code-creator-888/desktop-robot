@@ -73,6 +73,7 @@ let isSettingsOpen = false;
 let isMonitorOpen = false;
 let isThinking = false;
 let isReminderOpen = false;
+let isDblClickAnimating = false;
 let systemMonitorInterval = null;
 let portMonitorInterval = null;
 let countdownInterval = null;
@@ -1339,9 +1340,6 @@ window.addEventListener('mouseup', () => {
     behavior = 'idle';
     render();
     reportPetBounds();
-    if (!isSettingsOpen && !isMonitorOpen) {
-      setMouseCapture(false);
-    }
   }
 });
 
@@ -1356,9 +1354,11 @@ function setMouseCapture(capture) {
 
 document.addEventListener('mousemove', (e) => {
   if (isDragging) return;
-  if (isSettingsOpen || isMonitorOpen || isReminderOpen) return;
+  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isDblClickAnimating) return;
+  const rect = container.getBoundingClientRect();
+  const pad = 20;
+  const overContainer = e.clientX >= rect.left - pad && e.clientX <= rect.right + pad && e.clientY >= rect.top - pad && e.clientY <= rect.bottom + pad;
   const el = document.elementFromPoint(e.clientX, e.clientY);
-  const overContainer = !!(el && el.closest('#pet-container'));
   const overChatPanel = !!(el && el.closest('#chat-panel'));
   const overReminderCenter = !!(el && el.closest('#reminder-center'));
   setMouseCapture(overContainer || overChatPanel || overReminderCenter);
@@ -1673,6 +1673,8 @@ window.electronAPI.onPetClick(() => {
       showSpeech(line, 4000);
       petEl.classList.remove('idle');
       petEl.classList.add(effect.className);
+      isDblClickAnimating = true;
+      setMouseCapture(true);
 
       // Screen shake
       container.classList.add('shake');
@@ -1694,6 +1696,7 @@ window.electronAPI.onPetClick(() => {
       setTimeout(() => {
         petEl.classList.remove(effect.className);
         petEl.style.removeProperty('filter');
+        isDblClickAnimating = false;
         render();
       }, effect.durationMs);
     }
