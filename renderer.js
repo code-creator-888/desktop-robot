@@ -65,7 +65,6 @@ const reminderAddBtn = document.getElementById('reminder-add-btn');
 const reminderListEl = document.getElementById('reminder-list');
 
 let currentPet = 'robot';
-let behavior = 'idle';
 let facingLeft = false;
 let isDragging = false;
 let dragStartX = 0;
@@ -175,9 +174,9 @@ function getSystemPrompt() {
   const pet = getPet();
   const personality = PET_PERSONALITIES[currentPet];
   const name = (settings.petName && settings.petName.trim()) || pet.name;
-  return `你是用户的桌面宠物，一只${name}。你性格${personality.personality}。
+  return `你是用户的桌面机器人，一只${name}。你性格${personality.personality}。
 请用简短、可爱、口语化的中文回复，每次回复不超过50个字。
-保持你的宠物人设，可以偶尔加上动作描述（用括号包裹，如"（摇尾巴）"）。
+保持你的机器人设，可以偶尔加上动作描述（用括号包裹，如"（摇尾巴）"）。
 用户是你的主人，请亲切地称呼用户为"主人"。`;
 }
 
@@ -192,10 +191,7 @@ function render() {
   petEl.className = '';
   if (dblEffect) petEl.classList.add(dblEffect);
   if (facingLeft) petEl.classList.add('flipped');
-  if (behavior === 'walk') petEl.classList.add('walking');
-  if (behavior === 'idle') petEl.classList.add('idle');
-  if (behavior === 'sleep') petEl.classList.add('sleeping');
-  if (behavior === 'eat') petEl.classList.add('eating');
+  petEl.classList.add('idle');
   if (isThinking) petEl.classList.add('thinking');
   container.classList.toggle('thinking-tech', isThinking);
 }
@@ -762,7 +758,7 @@ function triggerReminderAlert(item) {
   currentAlertItem = item;
   snoozeBar.classList.remove('hidden');
   setMouseCapture(true);
-  reportPetBounds();
+  reportRobotBounds();
   setTimeout(() => {
     speechBubble.classList.add('reminder-alert');
     setTimeout(() => speechBubble.classList.remove('reminder-alert'), 3600);
@@ -1302,10 +1298,10 @@ document.getElementById('port-add-input').addEventListener('keydown', (e) => {
 });
 
 // --- Drag ---
-function reportPetBounds() {
+function reportRobotBounds() {
   const rect = container.getBoundingClientRect();
   const snoozeExtra = snoozeBar.classList.contains('hidden') ? 0 : 70;
-  window.electronAPI.setPetBounds({
+  window.electronAPI.setRobotBounds({
     x: Math.round(rect.left + window.screenX),
     y: Math.round(rect.top + window.screenY - snoozeExtra),
     width: Math.round(rect.width),
@@ -1334,16 +1330,15 @@ window.addEventListener('mousemove', (e) => {
   const rect = container.getBoundingClientRect();
   container.style.left = (rect.left + dx) + 'px';
   container.style.bottom = (window.innerHeight - rect.bottom - dy) + 'px';
-  reportPetBounds();
+  reportRobotBounds();
 });
 
 window.addEventListener('mouseup', () => {
   if (isDragging) {
     isDragging = false;
     container.classList.remove('dragging');
-    behavior = 'idle';
     render();
-    reportPetBounds();
+    reportRobotBounds();
   }
 });
 
@@ -1469,7 +1464,7 @@ speechBubble.addEventListener('click', (e) => {
   speechBubble.classList.remove('clickable', 'news');
   snoozeBar.classList.add('hidden');
   currentAlertItem = null;
-  reportPetBounds();
+  reportRobotBounds();
   clearTimeout(speechTimeout);
   updateMouseCapture();
 });
@@ -1479,7 +1474,7 @@ function doSnooze() {
   const validMins = Number.isFinite(mins) && mins > 0 ? mins : 5;
   if (!currentAlertItem) {
     snoozeBar.classList.add('hidden');
-    reportPetBounds();
+    reportRobotBounds();
     updateMouseCapture();
     return;
   }
@@ -1491,7 +1486,7 @@ function doSnooze() {
   speechBubble.classList.remove('clickable', 'news', 'reminder-alert');
   snoozeBar.classList.add('hidden');
   currentAlertItem = null;
-  reportPetBounds();
+  reportRobotBounds();
   updateMouseCapture();
 }
 
@@ -1685,11 +1680,11 @@ const DOUBLE_CLICK_EFFECTS = [
 let clickCount = 0;
 let clickTimer = null;
 
-window.electronAPI.onPetClick(() => {
+window.electronAPI.onRobotClick(() => {
   // Ignore global hit-test clicks while interacting with reminder snooze controls.
   if (!snoozeBar.classList.contains('hidden')) return;
   clickCount++;
-  console.log('[click] pet-click, clickCount=', clickCount);
+  console.log('[click] robot-click, clickCount=', clickCount);
 
   // If news bubble is showing, refresh immediately
   if (!speechBubble.classList.contains('hidden') && speechBubble.classList.contains('news')) {
@@ -1827,5 +1822,5 @@ checkDueReminders();
 setInterval(checkDueReminders, 30000);
 container.style.left = (window.innerWidth * 0.90) + 'px';
 render();
-reportPetBounds();
+reportRobotBounds();
 updateModelIndicator();

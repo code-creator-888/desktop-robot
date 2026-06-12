@@ -16,7 +16,7 @@ let uIOhookStarted = false;
 try {
   ({ uIOhook } = require('uiohook-napi'));
 } catch (error) {
-  console.warn('[startup] uiohook-napi unavailable; global shortcuts and pet hit-testing are disabled:', error.message);
+  console.warn('[startup] uiohook-napi unavailable; global shortcuts and robot hit-testing are disabled:', error.message);
 }
 
 let translateInProgress = false;
@@ -77,10 +77,10 @@ function createWindow() {
   win.loadFile('index.html');
 }
 
-let petBounds = null; // { x, y, width, height } in screen coords
+let robotBounds = null; // { x, y, width, height } in screen coords
 let lastMouseX = 0, lastMouseY = 0;
 
-async function buildPetMenuAsync() {
+async function buildRobotMenuAsync() {
   let modelItems = [];
   let activeId = '';
   if (win) {
@@ -122,10 +122,10 @@ app.whenReady().then(() => {
 
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);
-  tray.setToolTip('桌面宠物');
+  tray.setToolTip('桌面机器人');
 
   const trayMenu = Menu.buildFromTemplate([
-    { label: '显示宠物', click: () => win && win.show() },
+    { label: '显示机器人', click: () => win && win.show() },
     { label: '退出', click: () => app.quit() }
   ]);
   tray.setContextMenu(trayMenu);
@@ -155,21 +155,21 @@ app.whenReady().then(() => {
 
     uIOhook.on('mousedown', (e) => {
       if (e.button !== 1) return; // uiohook: button 1 = left
-      if (!petBounds || !win) return;
-      const { x, y, width, height } = petBounds;
+      if (!robotBounds || !win) return;
+      const { x, y, width, height } = robotBounds;
       if (e.x >= x && e.x <= x + width && e.y >= y && e.y <= y + height) {
-        win.webContents.send('pet-click');
+        win.webContents.send('robot-click');
       }
     });
 
     uIOhook.on('mouseup', async (e) => {
       if (e.button !== 2) return;
-      if (!petBounds || !win) return;
-      const { x, y, width, height } = petBounds;
+      if (!robotBounds || !win) return;
+      const { x, y, width, height } = robotBounds;
       if (e.x >= x && e.x <= x + width && e.y >= y && e.y <= y + height) {
         win.webContents.send('set-ignore-mouse-events', false);
         win.setIgnoreMouseEvents(false);
-        const menu = await buildPetMenuAsync();
+        const menu = await buildRobotMenuAsync();
         menu.popup({ window: win, x: e.x - win.getBounds().x, y: e.y - win.getBounds().y });
       }
     });
@@ -183,13 +183,13 @@ ipcMain.on('set-ignore-mouse-events', (event, ignore) => {
   if (win) win.setIgnoreMouseEvents(ignore, ignore ? { forward: true } : undefined);
 });
 
-ipcMain.on('set-pet-bounds', (event, bounds) => {
-  petBounds = bounds;
+ipcMain.on('set-robot-bounds', (event, bounds) => {
+  robotBounds = bounds;
 });
 
 ipcMain.on('show-context-menu', async (event, { x, y }) => {
   if (!win) return;
-  const menu = await buildPetMenuAsync();
+  const menu = await buildRobotMenuAsync();
   menu.popup({ window: win, x, y });
 });
 

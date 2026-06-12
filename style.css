@@ -53,50 +53,14 @@ html, body {
   transform: scaleX(-1);
 }
 
-/* Walk: bob up and down */
-#pet.walking {
-  animation: walk-bob 0.35s ease-in-out infinite;
-}
-#pet.flipped.walking {
-  animation: walk-bob-flip 0.35s ease-in-out infinite;
-}
-
-/* Sleep: slow sway */
-#pet.sleeping {
-  animation: sway 4s ease-in-out infinite;
-  opacity: 0.8;
-}
-
-/* Eat: bounce */
-#pet.eating {
-  animation: eat-bounce 0.5s ease infinite;
-}
-
 @keyframes breathe {
   0%, 100% { transform: scale(1) translateY(0); }
   50% { transform: scale(1.03) translateY(-2px); }
 }
 
-@keyframes walk-bob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-3px) rotate(-2deg); }
-  75% { transform: translateY(-3px) rotate(2deg); }
-}
-
-@keyframes walk-bob-flip {
-  0%, 100% { transform: scaleX(-1) translateY(0) rotate(0deg); }
-  25% { transform: scaleX(-1) translateY(-3px) rotate(-2deg); }
-  75% { transform: scaleX(-1) translateY(-3px) rotate(2deg); }
-}
-
 @keyframes sway {
   0%, 100% { transform: rotate(0deg); }
   50% { transform: rotate(3deg); }
-}
-
-@keyframes eat-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
 }
 
 @keyframes bounce {

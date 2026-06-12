@@ -3,8 +3,8 @@
 <div align="center">
   <img src="assets/robot.svg" alt="Desktop Robot" width="120">
   <br>
-  <p>🤖 A cute desktop pet for macOS, built with Electron</p>
-  <p>🤖 一个基于 Electron 构建的 macOS 桌面机器人宠物</p>
+  <p>🤖 A cute desktop robot for macOS, built with Electron</p>
+  <p>🤖 一个基于 Electron 构建的 macOS 桌面机器人</p>
 </div>
 
 <p align="center">
@@ -17,7 +17,7 @@
 
 ### Features
 
-- 🐾 **Cute Robot Pet** — A floating desktop robot that stays on top of all windows.
+- 🐾 **Cute Robot** — A floating desktop robot that stays on top of all windows.
 - 💬 **AI Chat** — Built-in chat panel powered by OpenAI-compatible / Anthropic APIs.
 - 🌐 **Web Fallback** — If primary model call fails, automatically search the web and summarize with citations.
 - 📊 **System Monitor** — Real-time CPU, memory, network, disk, and process monitoring.
@@ -65,7 +65,7 @@ MIT
 
 ### 功能特性
 
-- 🐾 **可爱机器人宠物** — 悬浮在所有窗口之上的桌面机器人。
+- 🐾 **可爱机器人** — 悬浮在所有窗口之上的桌面机器人。
 - 💬 **AI 对话** — 支持 OpenAI 兼容 / Anthropic API 的内置聊天面板。
 - 🌐 **联网回退** — 主模型调用失败时，自动网页搜索并生成带引用的总结回复。
 - 📊 **系统监控** — 实时查看 CPU、内存、网络、磁盘及进程信息。
