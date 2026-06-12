@@ -43,6 +43,17 @@ test('renderer has no snooze controls or snooze rule data', () => {
   assert.doesNotMatch(source, /reminder-snooze-btn/);
 });
 
+test('renderer ignores pet click when snooze bar is visible', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  assert.match(source, /onPetClick\(\(\)\s*=>\s*\{[\s\S]*if\s*\(!snoozeBar\.classList\.contains\('hidden'\)\)\s*return;/);
+});
+
+test('renderer keeps current alert item for snooze confirm and reactivates reminder', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  assert.match(source, /showSpeech\(`提醒：\$\{item\.title\}`,\s*0,\s*true\);\s*currentAlertItem = item;/);
+  assert.match(source, /currentAlertItem\.status\s*=\s*'pending';/);
+});
+
 test('preload exposes calendar fetch for reminder import', () => {
   const source = fs.readFileSync(preloadPath, 'utf8');
   assert.doesNotMatch(source, /getCalendarEvents:\s*\(\)\s*=>\s*ipcRenderer\.invoke\('get-calendar-events'\)/);

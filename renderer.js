@@ -19,6 +19,9 @@ const SPEECH_WRAP_THRESHOLD = 18;
 const petEl = document.getElementById('pet');
 const container = document.getElementById('pet-container');
 const speechBubble = document.getElementById('speech-bubble');
+const snoozeBar = document.getElementById('snooze-bar');
+const snoozeSelect = document.getElementById('snooze-select');
+const snoozeBtn = document.getElementById('snooze-btn');
 const chatPanel = document.getElementById('chat-panel');
 const chatMessages = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
@@ -198,6 +201,8 @@ function render() {
 }
 
 function showSpeech(text, duration, persistent, type) {
+  snoozeBar.classList.add('hidden');
+  currentAlertItem = null;
   speechBubble.textContent = text;
   speechBubble.classList.remove('hidden', 'wrap', 'news');
   speechBubble.classList.toggle('clickable', !!persistent);
@@ -212,6 +217,7 @@ function showSpeech(text, duration, persistent, type) {
   speechTimeout = setTimeout(() => {
     speechBubble.classList.add('hidden');
     speechBubble.classList.remove('clickable', 'news');
+    updateMouseCapture();
   }, duration);
 }
 
@@ -513,9 +519,7 @@ function openSettings() {
 function closeSettings() {
   isSettingsOpen = false;
   settingsModal.classList.add('hidden');
-  if (!isDragging && !isChatOpen && !isMonitorOpen && !isReminderOpen) {
-    setMouseCapture(false);
-  }
+  updateMouseCapture();
 }
 
 function loadReminderItems() {
@@ -638,7 +642,7 @@ function renderReminderList() {
           ${item.status !== 'done' ? `<div class="reminder-countdown" data-trigger-ts="${triggerTs}"></div>` : ''}
         </div>
         <div class="reminder-item-actions">
-          ${item.status !== 'done' ? `<button class="reminder-edit-btn" data-id="${item.id}">编辑</button>` : ''}
+          <button class="reminder-edit-btn" data-id="${item.id}">编辑</button>
           <button class="reminder-done-btn" data-id="${item.id}">完成</button>
           <button class="reminder-delete-btn" data-id="${item.id}">删除</button>
         </div>
@@ -751,8 +755,14 @@ function addManualReminder() {
   reminderAddTitle.value = '';
 }
 
+let currentAlertItem = null;
+
 function triggerReminderAlert(item) {
   showSpeech(`提醒：${item.title}`, 0, true);
+  currentAlertItem = item;
+  snoozeBar.classList.remove('hidden');
+  setMouseCapture(true);
+  reportPetBounds();
   setTimeout(() => {
     speechBubble.classList.add('reminder-alert');
     setTimeout(() => speechBubble.classList.remove('reminder-alert'), 3600);
@@ -810,9 +820,7 @@ function closeReminderCenter() {
   isReminderOpen = false;
   stopCountdown();
   reminderCenter.classList.add('hidden');
-  if (!isDragging && !isSettingsOpen && !isMonitorOpen && !isChatOpen) {
-    setMouseCapture(false);
-  }
+  updateMouseCapture();
 }
 
 // --- Chat ---
@@ -830,9 +838,7 @@ function closeChat() {
   saveCurrentSession();
   isChatOpen = false;
   chatPanel.classList.add('hidden');
-  if (!isDragging && !isSettingsOpen && !isMonitorOpen && !isReminderOpen) {
-    setMouseCapture(false);
-  }
+  updateMouseCapture();
 }
 
 function renderChatMessages() {
@@ -1145,9 +1151,7 @@ function closeSystemMonitor() {
   if (portMonitor.classList.contains('hidden')) {
     isMonitorOpen = false;
   }
-  if (!isDragging && !isSettingsOpen && !isMonitorOpen && !isReminderOpen) {
-    setMouseCapture(false);
-  }
+  updateMouseCapture();
 }
 
 systemMonitor.querySelectorAll('.monitor-tab').forEach(btn => {
@@ -1275,9 +1279,7 @@ function closePortMonitor() {
   if (systemMonitor.classList.contains('hidden')) {
     isMonitorOpen = false;
   }
-  if (!isDragging && !isSettingsOpen && !isMonitorOpen && !isReminderOpen) {
-    setMouseCapture(false);
-  }
+  updateMouseCapture();
 }
 
 portMonitor.querySelectorAll('.monitor-tab').forEach(btn => {
@@ -1302,16 +1304,18 @@ document.getElementById('port-add-input').addEventListener('keydown', (e) => {
 // --- Drag ---
 function reportPetBounds() {
   const rect = container.getBoundingClientRect();
+  const snoozeExtra = snoozeBar.classList.contains('hidden') ? 0 : 70;
   window.electronAPI.setPetBounds({
     x: Math.round(rect.left + window.screenX),
-    y: Math.round(rect.top + window.screenY),
+    y: Math.round(rect.top + window.screenY - snoozeExtra),
     width: Math.round(rect.width),
-    height: Math.round(rect.height)
+    height: Math.round(rect.height + snoozeExtra)
   });
 }
 
 container.addEventListener('mousedown', (e) => {
   if (e.button !== 0) return;
+  if (e.target.closest('#snooze-bar')) return;
   e.preventDefault();
   isDragging = true;
   dragStartX = e.clientX;
@@ -1352,9 +1356,21 @@ function setMouseCapture(capture) {
   window.electronAPI.setIgnoreMouseEvents(!capture);
 }
 
+function updateMouseCapture() {
+  const shouldCapture = isDragging ||
+    isSettingsOpen ||
+    isMonitorOpen ||
+    isReminderOpen ||
+    isChatOpen ||
+    isDblClickAnimating ||
+    !snoozeBar.classList.contains('hidden') ||
+    (!speechBubble.classList.contains('hidden') && speechBubble.classList.contains('clickable'));
+  setMouseCapture(shouldCapture);
+}
+
 document.addEventListener('mousemove', (e) => {
   if (isDragging) return;
-  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isDblClickAnimating) return;
+  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || (!speechBubble.classList.contains('hidden') && speechBubble.classList.contains('clickable'))) return;
   const rect = container.getBoundingClientRect();
   const pad = 20;
   const overContainer = e.clientX >= rect.left - pad && e.clientX <= rect.right + pad && e.clientY >= rect.top - pad && e.clientY <= rect.bottom + pad;
@@ -1443,15 +1459,52 @@ reminderAddBtn.addEventListener('click', addManualReminder);
 reminderAddTime.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addManualReminder();
 });
+speechBubble.addEventListener('mousedown', (e) => {
+  e.stopPropagation();
+});
 speechBubble.addEventListener('click', (e) => {
   e.stopPropagation();
   if (!speechBubble.classList.contains('clickable') && !speechBubble.classList.contains('news')) return;
   speechBubble.classList.add('hidden');
   speechBubble.classList.remove('clickable', 'news');
+  snoozeBar.classList.add('hidden');
+  currentAlertItem = null;
+  reportPetBounds();
   clearTimeout(speechTimeout);
+  updateMouseCapture();
 });
 
-// --- Translate / Explain selection ---
+function doSnooze() {
+  const mins = Number.parseInt(snoozeSelect.value, 10);
+  const validMins = Number.isFinite(mins) && mins > 0 ? mins : 5;
+  if (!currentAlertItem) {
+    snoozeBar.classList.add('hidden');
+    reportPetBounds();
+    updateMouseCapture();
+    return;
+  }
+  currentAlertItem.lastNotifiedAt = Date.now();
+  currentAlertItem.nextTriggerAt = new Date(Date.now() + validMins * 60 * 1000).toISOString();
+  currentAlertItem.status = 'pending';
+  saveReminderItems();
+  speechBubble.classList.add('hidden');
+  speechBubble.classList.remove('clickable', 'news', 'reminder-alert');
+  snoozeBar.classList.add('hidden');
+  currentAlertItem = null;
+  reportPetBounds();
+  updateMouseCapture();
+}
+
+snoozeBar.addEventListener('mousedown', (e) => {
+  e.stopPropagation();
+});
+snoozeBar.addEventListener('click', (e) => {
+  e.stopPropagation();
+});
+snoozeBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  doSnooze();
+});
 function containsChinese(text) {
   return /[\u4e00-\u9fff]/.test(text || '');
 }
@@ -1633,6 +1686,8 @@ let clickCount = 0;
 let clickTimer = null;
 
 window.electronAPI.onPetClick(() => {
+  // Ignore global hit-test clicks while interacting with reminder snooze controls.
+  if (!snoozeBar.classList.contains('hidden')) return;
   clickCount++;
   console.log('[click] pet-click, clickCount=', clickCount);
 
@@ -1698,6 +1753,7 @@ window.electronAPI.onPetClick(() => {
         petEl.style.removeProperty('filter');
         isDblClickAnimating = false;
         render();
+        updateMouseCapture();
       }, effect.durationMs);
     }
   }, DOUBLE_CLICK_WINDOW_MS);
