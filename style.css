@@ -14,7 +14,7 @@ html, body {
 
 #pet-container {
   position: absolute;
-  bottom: 20px;
+  bottom: 40px;
   left: 50%;
   cursor: grab;
   pointer-events: auto;
@@ -195,8 +195,7 @@ html, body {
 #chat-panel {
   position: absolute;
   bottom: 70px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 0;
   z-index: 100;
   width: 280px;
   max-height: 320px;

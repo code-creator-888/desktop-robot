@@ -1766,7 +1766,7 @@ function spawnImpactRing() {
 reminderItems = loadReminderItems();
 checkDueReminders();
 setInterval(checkDueReminders, 30000);
-container.style.left = (window.innerWidth - getPet().size - 20) + 'px';
+container.style.left = (window.innerWidth * 0.90) + 'px';
 render();
 reportPetBounds();
 updateModelIndicator();
