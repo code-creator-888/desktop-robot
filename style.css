@@ -1813,15 +1813,18 @@ html, body {
   animation: tech-key-hit-right 0.24s ease-in-out infinite;
 }
 
-/* thinking-tech 时遮住 SVG/3D 里的原始手臂（viewBox 0 0 100 100，手臂在 x≈7-23 和 x≈77-93，y≈65-75） */
+/* thinking-tech 时遮住 SVG/3D 里的原始手臂（viewBox 0 0 100 100，手臂在 x≈7-23 和 x≈77-93，y≈65-75）
+   mask-mode: luminance — 白色=显示，黑色=隐藏（alpha 模式下 black 反而是可见） */
 #pet-container.thinking-tech #pet,
 #pet-container.thinking-tech .robot-3d-canvas {
   -webkit-mask-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0id2hpdGUiLz48cmVjdCB4PSI3IiB5PSI2NSIgd2lkdGg9IjE2IiBoZWlnaHQ9IjEwIiByeD0iNCIgZmlsbD0iYmxhY2siLz48cmVjdCB4PSI3NyIgeT0iNjUiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxMCIgcng9IjQiIGZpbGw9ImJsYWNrIi8+PC9zdmc+');
   -webkit-mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
+  -webkit-mask-mode: luminance;
   mask-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0id2hpdGUiLz48cmVjdCB4PSI3IiB5PSI2NSIgd2lkdGg9IjE2IiBoZWlnaHQ9IjEwIiByeD0iNCIgZmlsbD0iYmxhY2siLz48cmVjdCB4PSI3NyIgeT0iNjUiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxMCIgcng9IjQiIGZpbGw9ImJsYWNrIi8+PC9zdmc+');
   mask-size: 100% 100%;
   mask-repeat: no-repeat;
+  mask-mode: luminance;
 }
 
 /*
