@@ -1813,6 +1813,22 @@ html, body {
   animation: tech-key-hit-right 0.24s ease-in-out infinite;
 }
 
+/* 思考时双手交替敲键盘 */
+#pet-container.thinking-tech .idle-self-hand.left {
+  animation: typing-hand 0.48s ease-in-out infinite;
+}
+
+#pet-container.thinking-tech .idle-self-hand.right {
+  animation: typing-hand 0.48s ease-in-out infinite;
+  animation-delay: -0.24s;
+}
+
+@keyframes typing-hand {
+  0%, 100% { opacity: 1; transform: translateY(0); }
+  40%, 60% { opacity: 1; transform: translateY(5px); }
+  20%, 80% { opacity: 0.85; transform: translateY(2px); }
+}
+
 .tech-cursor {
   position: absolute;
   right: 2px;
