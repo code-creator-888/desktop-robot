@@ -1813,20 +1813,39 @@ html, body {
   animation: tech-key-hit-right 0.24s ease-in-out infinite;
 }
 
-/* 思考时双手交替敲键盘 */
-#pet-container.thinking-tech .idle-self-hand.left {
-  animation: typing-hand 0.48s ease-in-out infinite;
+/* 键盘上的手型：直接放在 tech-prop 内，不复用机器人手臂图层 */
+.tech-hand {
+  position: absolute;
+  width: 6px;
+  height: 8px;
+  border-radius: 2px 2px 3px 3px;
+  background: linear-gradient(to bottom, #daeef8, #c0d8e8);
+  border: 1px solid rgba(160, 196, 216, 0.85);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+  opacity: 0;
+  pointer-events: none;
+  top: 9px;
 }
 
-#pet-container.thinking-tech .idle-self-hand.right {
-  animation: typing-hand 0.48s ease-in-out infinite;
+.tech-hand-left  { left: 3px; }
+.tech-hand-right { right: 3px; }
+
+#pet-container.thinking-tech .tech-hand-left {
+  opacity: 1;
+  animation: hand-tap 0.48s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+#pet-container.thinking-tech .tech-hand-right {
+  opacity: 1;
+  animation: hand-tap 0.48s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   animation-delay: -0.24s;
 }
 
-@keyframes typing-hand {
-  0%, 100% { opacity: 1; transform: translateY(0); }
-  40%, 60% { opacity: 1; transform: translateY(5px); }
-  20%, 80% { opacity: 0.85; transform: translateY(2px); }
+@keyframes hand-tap {
+  0%, 100% { transform: translateY(0); }
+  20%       { transform: translateY(1px); }
+  45%, 55%  { transform: translateY(4px); }
+  80%       { transform: translateY(1px); }
 }
 
 .tech-cursor {
