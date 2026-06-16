@@ -1889,56 +1889,55 @@ html, body {
   50% { opacity: 0.8; transform: translateX(-50%) scale(1.05); }
 }
 
-/* Double-click: Mega spin with squash-stretch & glow */
-#pet.dbl-spin {
-  animation: dbl-mega-spin 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-  filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3)) brightness(1.3);
+/* Double-click: Hologram glitch (rapid phase-shift) */
+#pet.dbl-glitch {
+  animation: dbl-hologram-glitch 0.92s steps(2, end);
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.7)) saturate(1.45) contrast(1.12);
 }
 
-@keyframes dbl-mega-spin {
-  0%   { transform: scale(1) rotate(0deg) translateY(0); }
-  15%  { transform: scale(0.85, 1.15) rotate(0deg) translateY(4px); }
-  35%  { transform: scale(1.25) rotate(360deg) translateY(-24px); }
-  55%  { transform: scale(1.15) rotate(660deg) translateY(-10px); }
-  75%  { transform: scale(0.9, 1.1) rotate(900deg) translateY(4px); }
-  88%  { transform: scale(1.08) rotate(960deg) translateY(-2px); }
-  100% { transform: scale(1) rotate(1080deg) translateY(0); }
+@keyframes dbl-hologram-glitch {
+  0%   { transform: translate(0, 0) skewX(0deg) scale(1); opacity: 1; }
+  10%  { transform: translate(-10px, -4px) skewX(-8deg) scale(0.95); opacity: 0.72; }
+  20%  { transform: translate(11px, 5px) skewX(7deg) scale(1.06); opacity: 1; }
+  32%  { transform: translate(-14px, 2px) skewX(-12deg) scale(0.92); opacity: 0.68; }
+  44%  { transform: translate(14px, -3px) skewX(10deg) scale(1.08); opacity: 1; }
+  58%  { transform: translate(-8px, -2px) skewX(-5deg) scale(0.97); opacity: 0.75; }
+  72%  { transform: translate(9px, 2px) skewX(6deg) scale(1.04); opacity: 1; }
+  100% { transform: translate(0, 0) skewX(0deg) scale(1); opacity: 1; }
 }
 
-/* Double-click: Rocket bounce with squash-stretch & multi-bounce landing */
-#pet.dbl-rocket {
-  animation: dbl-rocket-bounce 1s cubic-bezier(0.34, 1.56, 0.64, 1);
-  filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3)) brightness(1.2);
+/* Double-click: Heavy stomp (squat + slam + rebound) */
+#pet.dbl-stomp {
+  animation: dbl-heavy-stomp 1.05s cubic-bezier(0.2, 0.85, 0.35, 1);
+  filter: drop-shadow(3px 6px 8px rgba(0, 0, 0, 0.35)) brightness(1.18) saturate(1.2);
 }
 
-@keyframes dbl-rocket-bounce {
+@keyframes dbl-heavy-stomp {
   0%   { transform: scale(1) translateY(0); }
-  8%   { transform: scale(1.2, 0.8) translateY(6px); }
-  20%  { transform: scale(0.85, 1.2) translateY(-50px); }
-  40%  { transform: scale(1.05, 0.95) translateY(-50px); }
-  55%  { transform: scale(0.95, 1.05) translateY(4px); }
-  65%  { transform: scale(1.05, 0.95) translateY(-16px); }
-  78%  { transform: scale(0.98, 1.02) translateY(2px); }
-  88%  { transform: scale(1.02, 0.98) translateY(-5px); }
+  12%  { transform: scale(1.28, 0.72) translateY(12px); }
+  24%  { transform: scale(0.9, 1.15) translateY(-22px); }
+  38%  { transform: scale(1.08, 0.92) translateY(6px); }
+  52%  { transform: scale(1.18, 0.82) translateY(14px); }
+  64%  { transform: scale(0.94, 1.08) translateY(-8px); }
+  78%  { transform: scale(1.04, 0.96) translateY(2px); }
   100% { transform: scale(1) translateY(0); }
 }
 
-/* Double-click: Jelly wiggle with squash-stretch & hops */
-#pet.dbl-jelly {
-  animation: dbl-jelly-wiggle 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.97);
-  filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3)) brightness(1.2) saturate(1.3);
+/* Double-click: Disco groove (rhythm sway + tilt) */
+#pet.dbl-disco {
+  animation: dbl-disco-groove 1.2s cubic-bezier(0.3, 0.7, 0.2, 1);
+  filter: drop-shadow(2px 5px 8px rgba(20, 14, 50, 0.35)) brightness(1.22) saturate(1.5) hue-rotate(8deg);
 }
 
-@keyframes dbl-jelly-wiggle {
-  0%   { transform: scale(1) rotate(0deg) translateY(0); }
-  10%  { transform: scale(1.15, 0.85) rotate(-12deg) translateY(0); }
-  20%  { transform: scale(0.85, 1.2) rotate(10deg) translateY(-8px); }
-  30%  { transform: scale(1.12, 0.88) rotate(-14deg) translateY(0); }
-  40%  { transform: scale(0.88, 1.15) rotate(12deg) translateY(-6px); }
-  55%  { transform: scale(1.08, 0.92) rotate(-8deg) translateY(0); }
-  68%  { transform: scale(0.95, 1.08) rotate(6deg) translateY(-3px); }
-  82%  { transform: scale(1.03, 0.97) rotate(-3deg) translateY(0); }
-  100% { transform: scale(1) rotate(0deg) translateY(0); }
+@keyframes dbl-disco-groove {
+  0%   { transform: translateX(0) rotate(0deg) scale(1); }
+  10%  { transform: translateX(-16px) rotate(-15deg) scale(1.06); }
+  22%  { transform: translateX(17px) rotate(14deg) scale(1.08); }
+  34%  { transform: translateX(-13px) rotate(-11deg) scale(1.04); }
+  48%  { transform: translateX(15px) rotate(12deg) scale(1.1); }
+  62%  { transform: translateX(-10px) rotate(-8deg) scale(1.03); }
+  78%  { transform: translateX(9px) rotate(7deg) scale(1.02); }
+  100% { transform: translateX(0) rotate(0deg) scale(1); }
 }
 
 /* Floating heart */
@@ -1983,6 +1982,13 @@ html, body {
   animation: sparkle-burst var(--dur, 0.7s) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
+.music-note-particle {
+  position: absolute;
+  pointer-events: none;
+  z-index: 202;
+  animation: music-note-float 1.05s ease-out forwards;
+}
+
 @keyframes sparkle-burst {
   0% {
     opacity: 1;
@@ -1995,6 +2001,25 @@ html, body {
   100% {
     opacity: 0;
     transform: translate(var(--tx2), var(--ty2)) scale(0.5) rotate(360deg);
+  }
+}
+
+@keyframes music-note-float {
+  0% {
+    opacity: 0;
+    transform: translateX(0) translateY(0) rotate(0deg) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(calc(var(--note-x) * 0.45)) translateY(calc(var(--note-top) * -0.32)) rotate(-9deg) scale(1);
+  }
+  65% {
+    opacity: 1;
+    transform: translateX(var(--note-x)) translateY(calc(var(--note-top) * -0.8)) rotate(7deg) scale(1.06);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(calc(var(--note-x) * 1.15)) translateY(calc(var(--note-top) * -1.12)) rotate(12deg) scale(0.85);
   }
 }
 
