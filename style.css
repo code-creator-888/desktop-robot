@@ -1827,6 +1827,27 @@ html, body {
   mask-mode: luminance;
 }
 
+/* idle 动画：手臂 overlay 移动时，隐藏 #pet 里的原始对应手臂，避免「一静一动两只手」
+   yawning 只用右臂盖嘴 → 遮右臂；rubbing/stretching 双臂都动 → 遮两臂 */
+#pet-container.idle-yawning #pet {
+  -webkit-mask-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0id2hpdGUiLz48cmVjdCB4PSI3NyIgeT0iNjUiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxMCIgcng9IjQiIGZpbGw9ImJsYWNrIi8+PC9zdmc+');
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-mode: luminance;
+  mask-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0id2hpdGUiLz48cmVjdCB4PSI3NyIgeT0iNjUiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxMCIgcng9IjQiIGZpbGw9ImJsYWNrIi8+PC9zdmc+');
+  mask-size: 100% 100%;
+  mask-mode: luminance;
+}
+
+#pet-container.idle-rubbing #pet,
+#pet-container.idle-stretching #pet {
+  -webkit-mask-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0id2hpdGUiLz48cmVjdCB4PSI3IiB5PSI2NSIgd2lkdGg9IjE2IiBoZWlnaHQ9IjEwIiByeD0iNCIgZmlsbD0iYmxhY2siLz48cmVjdCB4PSI3NyIgeT0iNjUiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxMCIgcng9IjQiIGZpbGw9ImJsYWNrIi8+PC9zdmc+');
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-mode: luminance;
+  mask-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0id2hpdGUiLz48cmVjdCB4PSI3IiB5PSI2NSIgd2lkdGg9IjE2IiBoZWlnaHQ9IjEwIiByeD0iNCIgZmlsbD0iYmxhY2siLz48cmVjdCB4PSI3NyIgeT0iNjUiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxMCIgcng9IjQiIGZpbGw9ImJsYWNrIi8+PC9zdmc+');
+  mask-size: 100% 100%;
+  mask-mode: luminance;
+}
+
 /*
  * 打字手臂：起始位置 = SVG 手臂坐标（64px 图像中）
  *   左臂: x=8/100*64≈5px, y=66/100*64≈42px, w≈9px, h≈5px
