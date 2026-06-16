@@ -51,8 +51,20 @@ test('idle animations resume only when no UI remains open', () => {
   assert.match(source, /action === 'test-idle-rub-eyes'/);
   assert.match(source, /const idleActionClass = \['yawn-yawn', 'yawn-stretch', 'yawn-rub-eyes'\]/);
   assert.match(source, /const YAWN_ACTIONS = \[/);
+  assert.match(source, /function updatePetPerspective\(clientX, clientY\)/);
+  assert.match(source, /function resetPetPerspective\(\)/);
+  assert.match(source, /function initRobot3D\(\)/);
+  assert.match(source, /disposeRobot3D\(\);\s*if \(!robot3DHost\) return null;/);
+  assert.match(source, /if \(!THREE \|\| typeof THREE\.WebGLRenderer !== 'function'\)/);
+  assert.match(source, /try \{\s*renderer = new THREE\.WebGLRenderer\(\{ alpha: true, antialias: true \}\);\s*\} catch \(error\)/);
+  assert.match(source, /initRobot3D\(\);/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /id="idle-effects"/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /id="pet-stage"/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /id="pet-depth-stack"/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /node_modules\/three\/build\/three\.min\.js/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'), /#pet-container\.idle-yawning \.idle-mouth/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'), /#pet-stage \{/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'), /#robot-3d-host \{/);
 });
 
 test('switch-model action keeps chat input editable', () => {

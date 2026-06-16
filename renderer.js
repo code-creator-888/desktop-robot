@@ -18,6 +18,10 @@ const SPEECH_WRAP_THRESHOLD = 18;
 
 const petEl = document.getElementById('pet');
 const container = document.getElementById('pet-container');
+const petStage = document.getElementById('pet-stage');
+const petDepthLayers = Array.from(document.querySelectorAll('#pet-depth-stack .pet-depth-layer'));
+const THREE = window.THREE;
+const robot3DHost = document.getElementById('robot-3d-host');
 const speechBubble = document.getElementById('speech-bubble');
 const snoozeBar = document.getElementById('snooze-bar');
 const snoozeSelect = document.getElementById('snooze-select');
@@ -84,6 +88,10 @@ let currentSessionId = null;
 let envConfig = { baseUrl: '', model: '', apiKey: '' };
 let reminderItems = [];
 let editingReminderId = null;
+let robot3D = null;
+let robot3DResizeObserver = null;
+let robot3DWindowResizeHandler = null;
+let currentPetSrc = '';
 
 // --- Session management ---
 const MAX_SESSIONS = 10;
@@ -186,6 +194,19 @@ function render() {
   petEl.src = pet.src;
   petEl.style.width = pet.size + 'px';
   petEl.style.height = pet.size + 'px';
+  petStage.style.width = pet.size + 'px';
+  petStage.style.height = pet.size + 'px';
+  petDepthLayers.forEach((layer, index) => {
+    const depth = index + 1;
+    if (pet.src !== currentPetSrc) {
+      layer.style.backgroundImage = `url("${pet.src}")`;
+    }
+    layer.style.setProperty('--depth-x', `${depth * 1.2}px`);
+    layer.style.setProperty('--depth-y', `${depth * 1.8}px`);
+    layer.style.setProperty('--depth-z', `${-depth * 8}px`);
+    layer.style.setProperty('--depth-scale', `${1 + depth * 0.012}`);
+  });
+  currentPetSrc = pet.src;
 
   const dblEffect = ['dbl-spin', 'dbl-rocket', 'dbl-jelly'].find(c => petEl.classList.contains(c));
   const idleActionClass = ['yawn-yawn', 'yawn-stretch', 'yawn-rub-eyes'].find(c => petEl.classList.contains(c));
@@ -218,6 +239,195 @@ function showSpeech(text, duration, persistent, type) {
     speechBubble.classList.remove('clickable', 'news');
     updateMouseCapture();
   }, duration);
+}
+
+function resizeRobot3D() {
+  if (!robot3D) return;
+  const width = petStage.clientWidth || petEl.width || 64;
+  const height = petStage.clientHeight || petEl.height || 64;
+  robot3D.renderer.setSize(width, height, false);
+  robot3D.camera.aspect = width / height;
+  robot3D.camera.updateProjectionMatrix();
+}
+
+function setRobot3DTarget(nx, ny, lift) {
+  if (!robot3D) return;
+  robot3D.state.targetX = nx * 0.6;
+  robot3D.state.targetY = -ny * 0.42;
+  robot3D.state.targetZ = nx * 0.14;
+  robot3D.state.targetLift = lift * 0.08;
+}
+
+function resetRobot3DTarget() {
+  if (!robot3D) return;
+  robot3D.state.targetX = 0;
+  robot3D.state.targetY = 0;
+  robot3D.state.targetZ = 0;
+  robot3D.state.targetLift = 0;
+}
+
+function disposeRobot3D() {
+  if (robot3DResizeObserver) {
+    robot3DResizeObserver.disconnect();
+    robot3DResizeObserver = null;
+  }
+  if (robot3DWindowResizeHandler) {
+    window.removeEventListener('resize', robot3DWindowResizeHandler);
+    robot3DWindowResizeHandler = null;
+  }
+  if (robot3D) {
+    if (robot3D.animationId) {
+      cancelAnimationFrame(robot3D.animationId);
+      robot3D.animationId = null;
+    }
+    robot3D.renderer.dispose();
+    robot3D = null;
+  }
+  container.classList.remove('robot-3d-ready');
+}
+
+function initRobot3D() {
+  disposeRobot3D();
+  if (!robot3DHost) return null;
+  if (!THREE || typeof THREE.WebGLRenderer !== 'function') {
+    console.warn('[robot-3d] THREE unavailable, fallback to 2D rendering.');
+    return null;
+  }
+
+  let renderer = null;
+  try {
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  } catch (error) {
+    console.warn('[robot-3d] WebGL unavailable, fallback to 2D rendering.', error);
+    return null;
+  }
+  renderer.setClearColor(0x000000, 0);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) {
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+  } else if ('outputEncoding' in renderer && THREE.sRGBEncoding) {
+    renderer.outputEncoding = THREE.sRGBEncoding;
+  }
+  renderer.domElement.className = 'robot-3d-canvas';
+  robot3DHost.replaceChildren(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+  camera.position.set(0, 0.15, 8);
+
+  const rig = new THREE.Group();
+  scene.add(rig);
+
+  const ambient = new THREE.AmbientLight(0xffffff, 1.8);
+  scene.add(ambient);
+
+  const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+  keyLight.position.set(2.5, 3.5, 5);
+  scene.add(keyLight);
+
+  const fillLight = new THREE.DirectionalLight(0x89d8ff, 0.9);
+  fillLight.position.set(-2.5, 1.8, 3);
+  scene.add(fillLight);
+
+  const rimLight = new THREE.DirectionalLight(0x1f8fff, 0.65);
+  rimLight.position.set(0, 1.5, -4);
+  scene.add(rimLight);
+
+  const textureLoader = new THREE.TextureLoader();
+  const texture = textureLoader.load('assets/robot.svg', () => {
+    resizeRobot3D();
+  });
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  if (THREE.SRGBColorSpace) texture.colorSpace = THREE.SRGBColorSpace;
+
+  const shellMaterial = new THREE.MeshStandardMaterial({ color: 0xcfe2ea, roughness: 0.45, metalness: 0.08 });
+  const sideMaterial = new THREE.MeshStandardMaterial({ color: 0xa3bcc9, roughness: 0.65, metalness: 0.06 });
+  const backMaterial = new THREE.MeshStandardMaterial({ color: 0x7d97a4, roughness: 0.9, metalness: 0.02 });
+  const frontMaterial = new THREE.MeshStandardMaterial({
+    map: texture,
+    transparent: true,
+    roughness: 0.45,
+    metalness: 0.12,
+    emissive: 0x08131a,
+    emissiveIntensity: 0.08
+  });
+
+  const shell = new THREE.Mesh(
+    new THREE.BoxGeometry(2.85, 3.25, 1.05),
+    [sideMaterial, sideMaterial, shellMaterial, sideMaterial, shellMaterial, backMaterial]
+  );
+  shell.position.y = -0.05;
+  rig.add(shell);
+
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(2.95, 3.35), frontMaterial);
+  front.position.z = 0.545;
+  front.position.y = -0.05;
+  rig.add(front);
+
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(1.55, 40),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.24 })
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.set(0, -1.88, -0.65);
+  rig.add(shadow);
+
+  robot3D = {
+    renderer,
+    scene,
+    camera,
+    rig,
+    shadow,
+    animationId: null,
+    state: {
+      targetX: 0,
+      targetY: 0,
+      targetZ: 0,
+      targetLift: 0,
+      currentX: 0,
+      currentY: 0,
+      currentZ: 0,
+      currentLift: 0
+    }
+  };
+
+  resizeRobot3D();
+  container.classList.add('robot-3d-ready');
+
+  if (typeof ResizeObserver === 'function') {
+    robot3DResizeObserver = new ResizeObserver(() => {
+      if (robot3D) resizeRobot3D();
+    });
+    robot3DResizeObserver.observe(robot3DHost);
+  } else {
+    robot3DWindowResizeHandler = () => {
+      if (robot3D) resizeRobot3D();
+    };
+    window.addEventListener('resize', robot3DWindowResizeHandler);
+  }
+
+  const animate = (timestamp) => {
+    if (!robot3D) return;
+    const state = robot3D.state;
+    state.currentX += (state.targetX - state.currentX) * 0.08;
+    state.currentY += (state.targetY - state.currentY) * 0.08;
+    state.currentZ += (state.targetZ - state.currentZ) * 0.08;
+    state.currentLift += (state.targetLift - state.currentLift) * 0.08;
+
+    robot3D.rig.rotation.y = state.currentX;
+    robot3D.rig.rotation.x = state.currentY;
+    robot3D.rig.rotation.z = state.currentZ;
+    robot3D.rig.position.y = state.currentLift + Math.sin(timestamp * 0.0016) * 0.05;
+    robot3D.shadow.scale.setScalar(1 - Math.min(0.28, Math.abs(state.currentX) * 0.35 + Math.abs(state.currentY) * 0.25));
+
+    robot3D.renderer.render(robot3D.scene, robot3D.camera);
+    robot3D.animationId = requestAnimationFrame(animate);
+  };
+
+  robot3D.animationId = requestAnimationFrame(animate);
+  return robot3D;
 }
 
 // --- Model config management ---
@@ -1364,6 +1574,46 @@ function setMouseCapture(capture) {
   window.electronAPI.setIgnoreMouseEvents(!capture);
 }
 
+function resetPetPerspective() {
+  petStage.style.setProperty('--tilt-x', '0deg');
+  petStage.style.setProperty('--tilt-y', '0deg');
+  petStage.style.setProperty('--stage-lift', '0px');
+  petStage.style.setProperty('--shadow-scale', '1');
+  resetRobot3DTarget();
+  petDepthLayers.forEach((layer, index) => {
+    const depth = index + 1;
+    layer.style.setProperty('--depth-x', `${depth * 1.2}px`);
+    layer.style.setProperty('--depth-y', `${depth * 1.8}px`);
+    layer.style.setProperty('--depth-z', `${-depth * 8}px`);
+    layer.style.setProperty('--depth-scale', `${1 + depth * 0.012}`);
+  });
+}
+
+function updatePetPerspective(clientX, clientY) {
+  const rect = petStage.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+
+  const nx = Math.max(-1, Math.min(1, ((clientX - rect.left) / rect.width) * 2 - 1));
+  const ny = Math.max(-1, Math.min(1, ((clientY - rect.top) / rect.height) * 2 - 1));
+  const tiltX = (nx * 14).toFixed(2);
+  const tiltY = (-ny * 10).toFixed(2);
+  const lift = Math.max(0, 10 - (Math.abs(nx) + Math.abs(ny)) * 4).toFixed(2);
+  const shadowScale = (1 - Math.min(0.28, (Math.abs(nx) + Math.abs(ny)) * 0.08)).toFixed(3);
+
+  petStage.style.setProperty('--tilt-x', `${tiltX}deg`);
+  petStage.style.setProperty('--tilt-y', `${tiltY}deg`);
+  petStage.style.setProperty('--stage-lift', `${lift}px`);
+  petStage.style.setProperty('--shadow-scale', shadowScale);
+  setRobot3DTarget(nx, ny, lift);
+  petDepthLayers.forEach((layer, index) => {
+    const depth = index + 1;
+    const parallaxX = (nx * depth * 4.5).toFixed(2);
+    const parallaxY = (ny * depth * 2.8).toFixed(2);
+    layer.style.setProperty('--depth-x', `${depth * 1.2 + Number(parallaxX)}px`);
+    layer.style.setProperty('--depth-y', `${depth * 1.8 + Number(parallaxY)}px`);
+  });
+}
+
 function updateMouseCapture() {
   const shouldCapture = isDragging ||
     isSettingsOpen ||
@@ -1377,14 +1627,22 @@ function updateMouseCapture() {
 }
 
 document.addEventListener('mousemove', (e) => {
-  if (isDragging) return;
-  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || (!speechBubble.classList.contains('hidden') && speechBubble.classList.contains('clickable'))) return;
+  if (isDragging) {
+    resetPetPerspective();
+    return;
+  }
+  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || (!speechBubble.classList.contains('hidden') && speechBubble.classList.contains('clickable'))) {
+    resetPetPerspective();
+    return;
+  }
   const rect = container.getBoundingClientRect();
   const pad = 20;
   const overContainer = e.clientX >= rect.left - pad && e.clientX <= rect.right + pad && e.clientY >= rect.top - pad && e.clientY <= rect.bottom + pad;
   const el = document.elementFromPoint(e.clientX, e.clientY);
   const overChatPanel = !!(el && el.closest('#chat-panel'));
   const overReminderCenter = !!(el && el.closest('#reminder-center'));
+  if (overContainer) updatePetPerspective(e.clientX, e.clientY);
+  else resetPetPerspective();
   setMouseCapture(overContainer || overChatPanel || overReminderCenter);
 });
 
@@ -1859,10 +2117,9 @@ function spawnImpactRing() {
   ring.addEventListener('animationend', () => ring.remove(), { once: true });
 }
 
-// --- Idle animations (yawn / monologue) ---
+// --- Idle animations (yawn) ---
 let isIdleAnimating = false;
 let idleYawnTimer = null;
-let idleMonologueTimer = null;
 
 function isUserInteracting() {
   return isDragging || isChatOpen || isSettingsOpen || isMonitorOpen ||
@@ -1946,6 +2203,7 @@ checkDueReminders();
 setInterval(checkDueReminders, 30000);
 container.style.left = (window.innerWidth * 0.90) + 'px';
 render();
+initRobot3D();
 reportRobotBounds();
 updateModelIndicator();
 startIdleAnimations();

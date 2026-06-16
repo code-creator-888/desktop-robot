@@ -6,28 +6,38 @@
 </head>
 <body>
   <div id="pet-container">
-    <img id="pet" src="assets/robot.svg" alt="机器人" draggable="false">
-    <div id="tech-prop" aria-hidden="true">
-      <div class="tech-laptop">
-        <div class="tech-screen">
-          <div class="tech-scan-line"></div>
-          <div class="tech-cursor"></div>
-        </div>
-        <div class="tech-keyboard">
-          <div class="tech-key-hit tech-key-hit-left"></div>
-          <div class="tech-key-hit tech-key-hit-right"></div>
-        </div>
+    <div id="pet-stage">
+      <div id="robot-3d-host" aria-hidden="true"></div>
+      <div id="pet-depth-stack" aria-hidden="true">
+        <div class="pet-depth-layer layer-1"></div>
+        <div class="pet-depth-layer layer-2"></div>
+        <div class="pet-depth-layer layer-3"></div>
+        <div class="pet-depth-layer layer-4"></div>
+        <div class="pet-depth-layer layer-5"></div>
       </div>
-      <div class="tech-glow"></div>
+      <img id="pet" src="assets/robot.svg" alt="机器人" draggable="false">
+      <div id="tech-prop" aria-hidden="true">
+        <div class="tech-laptop">
+          <div class="tech-screen">
+            <div class="tech-scan-line"></div>
+            <div class="tech-cursor"></div>
+          </div>
+          <div class="tech-keyboard">
+            <div class="tech-key-hit tech-key-hit-left"></div>
+            <div class="tech-key-hit tech-key-hit-right"></div>
+          </div>
+        </div>
+        <div class="tech-glow"></div>
+      </div>
+      <div id="idle-effects" aria-hidden="true">
+        <div class="idle-mouth"></div>
+        <div class="idle-rub left"></div>
+        <div class="idle-rub right"></div>
+        <div class="idle-stretch left"></div>
+        <div class="idle-stretch right"></div>
+      </div>
     </div>
     <div id="speech-bubble" class="hidden"></div>
-    <div id="idle-effects" aria-hidden="true">
-      <div class="idle-mouth"></div>
-      <div class="idle-rub left"></div>
-      <div class="idle-rub right"></div>
-      <div class="idle-stretch left"></div>
-      <div class="idle-stretch right"></div>
-    </div>
     <div id="snooze-bar" class="hidden">
       <span>稍后提醒</span>
       <select id="snooze-select">
@@ -233,6 +243,7 @@
       </div>
     </div>
   </div>
+  <script src="node_modules/three/build/three.min.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>
