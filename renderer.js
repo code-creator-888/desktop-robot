@@ -192,6 +192,7 @@ function render() {
   const pet = getPet();
 
   petEl.src = pet.src;
+  petStage.style.setProperty('--pet-image', `url("${pet.src}")`);
   petEl.style.width = pet.size + 'px';
   petEl.style.height = pet.size + 'px';
   petStage.style.width = pet.size + 'px';
