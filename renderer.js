@@ -209,7 +209,7 @@ function render() {
   });
   currentPetSrc = pet.src;
 
-  const dblEffect = ['dbl-spin', 'dbl-rocket', 'dbl-jelly'].find(c => petEl.classList.contains(c));
+  const dblEffect = ['dbl-glitch', 'dbl-stomp', 'dbl-disco'].find(c => petEl.classList.contains(c));
   const idleActionClass = ['yawn-yawn', 'yawn-stretch', 'yawn-rub-eyes'].find(c => petEl.classList.contains(c));
   petEl.className = '';
   if (dblEffect) petEl.classList.add(dblEffect);
@@ -234,6 +234,7 @@ function showSpeech(text, duration, persistent, type) {
   speechBubble.classList.add('speech-pop');
   setTimeout(() => speechBubble.classList.remove('speech-pop'), 300);
   clearTimeout(speechTimeout);
+  updateMouseCapture();
   if (persistent || !duration || duration <= 0) return;
   speechTimeout = setTimeout(() => {
     speechBubble.classList.add('hidden');
@@ -1575,6 +1576,11 @@ function setMouseCapture(capture) {
   window.electronAPI.setIgnoreMouseEvents(!capture);
 }
 
+// Sync isCapturing when main process directly calls win.setIgnoreMouseEvents (e.g. right-click menu)
+window.electronAPI.onIgnoreMouseEventsChanged((ignore) => {
+  isCapturing = !ignore;
+});
+
 function resetPetPerspective() {
   petStage.style.setProperty('--tilt-x', '0deg');
   petStage.style.setProperty('--tilt-y', '0deg');
@@ -1623,7 +1629,7 @@ function updateMouseCapture() {
     isChatOpen ||
     isDblClickAnimating ||
     !snoozeBar.classList.contains('hidden') ||
-    (!speechBubble.classList.contains('hidden') && speechBubble.classList.contains('clickable'));
+    !speechBubble.classList.contains('hidden');
   setMouseCapture(shouldCapture);
 }
 
@@ -1632,7 +1638,7 @@ document.addEventListener('mousemove', (e) => {
     resetPetPerspective();
     return;
   }
-  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || (!speechBubble.classList.contains('hidden') && speechBubble.classList.contains('clickable'))) {
+  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isChatOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || !speechBubble.classList.contains('hidden')) {
     resetPetPerspective();
     return;
   }
@@ -1642,9 +1648,14 @@ document.addEventListener('mousemove', (e) => {
   const el = document.elementFromPoint(e.clientX, e.clientY);
   const overChatPanel = !!(el && el.closest('#chat-panel'));
   const overReminderCenter = !!(el && el.closest('#reminder-center'));
+  // Use bounding rect for speech bubble since it overflows the container (top: -50px)
+  const sbRect = speechBubble.getBoundingClientRect();
+  const overSpeechBubble = !speechBubble.classList.contains('hidden') &&
+    e.clientX >= sbRect.left && e.clientX <= sbRect.right &&
+    e.clientY >= sbRect.top && e.clientY <= sbRect.bottom;
   if (overContainer) updatePetPerspective(e.clientX, e.clientY);
   else resetPetPerspective();
-  setMouseCapture(overContainer || overChatPanel || overReminderCenter);
+  setMouseCapture(overContainer || overChatPanel || overReminderCenter || overSpeechBubble);
 });
 
 // --- Context menu (native) ---
@@ -1947,13 +1958,15 @@ const DOUBLE_CLICK_LINES = [
     ];
     return picks[Math.floor(Math.random() * picks.length)];
   },
+  () => '（踩着节拍）双击收到！开始跳舞模式！🎵',
 ];
 const DOUBLE_CLICK_WINDOW_MS = 450;
 const DOUBLE_CLICK_EFFECTS = [
-  { className: 'dbl-spin',   durationMs: 900, particles: 'hearts',  glowColor: 'rgba(255,77,121,0.6)' },
-  { className: 'dbl-rocket', durationMs: 1000, particles: 'sparkles', glowColor: 'rgba(255,215,0,0.6)', impact: true },
-  { className: 'dbl-jelly',  durationMs: 850, particles: 'mixed',   glowColor: 'rgba(100,200,255,0.6)' },
+  { className: 'dbl-glitch', durationMs: 920, particles: 'sparkles', glowColor: 'rgba(34,211,238,0.65)' },
+  { className: 'dbl-stomp',  durationMs: 1050, particles: 'mixed',   glowColor: 'rgba(251,146,60,0.62)', impact: true },
+  { className: 'dbl-disco',  durationMs: 1200, particles: 'music',   glowColor: 'rgba(168,85,247,0.68)' },
 ];
+let doubleClickEffectIndex = 0;
 
 const YAWN_ACTIONS = [
   {
@@ -2021,7 +2034,8 @@ window.electronAPI.onRobotClick(() => {
     } else if (count >= 2) {
       const lineFn = DOUBLE_CLICK_LINES[Math.floor(Math.random() * DOUBLE_CLICK_LINES.length)];
       const line = await lineFn();
-      const effect = DOUBLE_CLICK_EFFECTS[Math.floor(Math.random() * DOUBLE_CLICK_EFFECTS.length)];
+      const effect = DOUBLE_CLICK_EFFECTS[doubleClickEffectIndex];
+      doubleClickEffectIndex = (doubleClickEffectIndex + 1) % DOUBLE_CLICK_EFFECTS.length;
       showSpeech(line, 4000);
       petEl.classList.remove('idle');
       petEl.classList.add(effect.className);
@@ -2038,6 +2052,7 @@ window.electronAPI.onRobotClick(() => {
       // Particles
       if (effect.particles === 'hearts') spawnHearts(7);
       else if (effect.particles === 'sparkles') spawnSparkles(10);
+      else if (effect.particles === 'music') spawnMusicNotes(9);
       else if (effect.particles === 'mixed') { spawnHearts(4); spawnSparkles(6); }
 
       // Impact ring for bounce
@@ -2100,6 +2115,26 @@ function spawnSparkles(count = 10) {
 
     container.appendChild(spark);
     spark.addEventListener('animationend', () => spark.remove(), { once: true });
+  }
+}
+
+function spawnMusicNotes(count = 8) {
+  const notes = ['♪', '♫', '♩', '♬'];
+  const colors = ['#8B5CF6', '#EC4899', '#22D3EE', '#F59E0B', '#34D399'];
+  for (let i = 0; i < count; i++) {
+    const note = document.createElement('div');
+    note.className = 'music-note-particle';
+    note.textContent = notes[Math.floor(Math.random() * notes.length)];
+    note.style.color = colors[Math.floor(Math.random() * colors.length)];
+    note.style.fontSize = (16 + Math.random() * 10) + 'px';
+    note.style.left = '50%';
+    note.style.bottom = '52px';
+    note.style.animationDelay = (i * 0.04) + 's';
+    note.style.setProperty('--note-x', ((Math.random() - 0.5) * 120) + 'px');
+    note.style.setProperty('--note-top', (70 + Math.random() * 60) + 'px');
+    note.style.textShadow = `0 0 8px ${note.style.color}`;
+    container.appendChild(note);
+    note.addEventListener('animationend', () => note.remove(), { once: true });
   }
 }
 
