@@ -1813,39 +1813,63 @@ html, body {
   animation: tech-key-hit-right 0.24s ease-in-out infinite;
 }
 
-/* 键盘上的手型：直接放在 tech-prop 内，不复用机器人手臂图层 */
-.tech-hand {
-  position: absolute;
-  width: 6px;
-  height: 8px;
-  border-radius: 2px 2px 3px 3px;
-  background: linear-gradient(to bottom, #daeef8, #c0d8e8);
-  border: 1px solid rgba(160, 196, 216, 0.85);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
-  opacity: 0;
-  pointer-events: none;
-  top: 9px;
+/* thinking-tech 时遮住 SVG/3D 里的原始手臂（viewBox 0 0 100 100，手臂在 x≈7-23 和 x≈77-93，y≈65-75） */
+#pet-container.thinking-tech #pet,
+#pet-container.thinking-tech .robot-3d-canvas {
+  -webkit-mask-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0id2hpdGUiLz48cmVjdCB4PSI3IiB5PSI2NSIgd2lkdGg9IjE2IiBoZWlnaHQ9IjEwIiByeD0iNCIgZmlsbD0iYmxhY2siLz48cmVjdCB4PSI3NyIgeT0iNjUiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxMCIgcng9IjQiIGZpbGw9ImJsYWNrIi8+PC9zdmc+');
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0id2hpdGUiLz48cmVjdCB4PSI3IiB5PSI2NSIgd2lkdGg9IjE2IiBoZWlnaHQ9IjEwIiByeD0iNCIgZmlsbD0iYmxhY2siLz48cmVjdCB4PSI3NyIgeT0iNjUiIHdpZHRoPSIxNiIgaGVpZ2h0PSIxMCIgcng9IjQiIGZpbGw9ImJsYWNrIi8+PC9zdmc+');
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
 }
 
-.tech-hand-left  { left: 3px; }
-.tech-hand-right { right: 3px; }
+/*
+ * 打字手臂：起始位置 = SVG 手臂坐标（64px 图像中）
+ *   左臂: x=8/100*64≈5px, y=66/100*64≈42px, w≈9px, h≈5px
+ *   右臂: x=78/100*64≈50px, 同高
+ * thinking-tech 时向内伸向键盘（keyboard 中心在 x≈28/36px），translateX 约 +18/-18px
+ */
+.tech-hand {
+  position: absolute;
+  width: 10px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #daeef8, #c0d8e8);
+  border: 1px solid #a0c4d8;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  top: 42px;
+}
+
+.tech-hand-left  { left: 5px; }
+.tech-hand-right { left: 50px; }
 
 #pet-container.thinking-tech .tech-hand-left {
   opacity: 1;
-  animation: hand-tap 0.48s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: arm-type-left 0.48s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 #pet-container.thinking-tech .tech-hand-right {
   opacity: 1;
-  animation: hand-tap 0.48s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: arm-type-right 0.48s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   animation-delay: -0.24s;
 }
 
-@keyframes hand-tap {
-  0%, 100% { transform: translateY(0); }
-  20%       { transform: translateY(1px); }
-  45%, 55%  { transform: translateY(4px); }
-  80%       { transform: translateY(1px); }
+/* 左臂向右内收 18px 并轻按 2px；右臂镜像 */
+@keyframes arm-type-left {
+  0%, 100% { transform: translate(0, 0); }
+  20%       { transform: translate(9px, 1px); }
+  45%, 55%  { transform: translate(18px, 3px); }
+  80%       { transform: translate(9px, 1px); }
+}
+
+@keyframes arm-type-right {
+  0%, 100% { transform: translate(0, 0); }
+  20%       { transform: translate(-9px, 1px); }
+  45%, 55%  { transform: translate(-18px, 3px); }
+  80%       { transform: translate(-9px, 1px); }
 }
 
 .tech-cursor {
