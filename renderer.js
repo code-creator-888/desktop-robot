@@ -188,9 +188,12 @@ function render() {
   petEl.style.height = pet.size + 'px';
 
   const dblEffect = ['dbl-spin', 'dbl-rocket', 'dbl-jelly'].find(c => petEl.classList.contains(c));
+  const idleActionClass = ['yawn-yawn', 'yawn-stretch', 'yawn-rub-eyes'].find(c => petEl.classList.contains(c));
   petEl.className = '';
   if (dblEffect) petEl.classList.add(dblEffect);
+  if (idleActionClass) petEl.classList.add(idleActionClass);
   if (facingLeft) petEl.classList.add('flipped');
+  container.classList.toggle('flipped-effects', facingLeft);
   petEl.classList.add('idle');
   if (isThinking) petEl.classList.add('thinking');
   container.classList.toggle('thinking-tech', isThinking);
@@ -507,6 +510,7 @@ function getTranslateModelConfig() {
 
 function openSettings() {
   isSettingsOpen = true;
+  stopIdleAnimations();
   loadSettings();
   settingsModal.classList.remove('hidden');
   setMouseCapture(true);
@@ -515,6 +519,7 @@ function openSettings() {
 function closeSettings() {
   isSettingsOpen = false;
   settingsModal.classList.add('hidden');
+  resumeIdleAnimationsIfAllowed();
   updateMouseCapture();
 }
 
@@ -806,6 +811,7 @@ function checkDueReminders() {
 
 function openReminderCenter() {
   isReminderOpen = true;
+  stopIdleAnimations();
   reminderCenter.classList.remove('hidden');
   setMouseCapture(true);
   renderReminderList();
@@ -816,12 +822,14 @@ function closeReminderCenter() {
   isReminderOpen = false;
   stopCountdown();
   reminderCenter.classList.add('hidden');
+  resumeIdleAnimationsIfAllowed();
   updateMouseCapture();
 }
 
 // --- Chat ---
 function openChat() {
   isChatOpen = true;
+  stopIdleAnimations();
   chatPanel.classList.remove('hidden');
   setMouseCapture(true);
   initSession();
@@ -834,6 +842,7 @@ function closeChat() {
   saveCurrentSession();
   isChatOpen = false;
   chatPanel.classList.add('hidden');
+  resumeIdleAnimationsIfAllowed();
   updateMouseCapture();
 }
 
@@ -1118,6 +1127,7 @@ function renderProcessList(listId, processes) {
 
 function openSystemMonitor() {
   isMonitorOpen = true;
+  stopIdleAnimations();
   systemMonitor.classList.remove('hidden');
   setMouseCapture(true);
   switchTab(systemMonitor, 'overview');
@@ -1147,6 +1157,7 @@ function closeSystemMonitor() {
   if (portMonitor.classList.contains('hidden')) {
     isMonitorOpen = false;
   }
+  resumeIdleAnimationsIfAllowed();
   updateMouseCapture();
 }
 
@@ -1246,6 +1257,7 @@ function renderAllPorts(data) {
 
 function openPortMonitor() {
   isMonitorOpen = true;
+  stopIdleAnimations();
   portMonitor.classList.remove('hidden');
   setMouseCapture(true);
   switchTab(portMonitor, 'watched');
@@ -1275,6 +1287,7 @@ function closePortMonitor() {
   if (systemMonitor.classList.contains('hidden')) {
     isMonitorOpen = false;
   }
+  resumeIdleAnimationsIfAllowed();
   updateMouseCapture();
 }
 
@@ -1415,6 +1428,12 @@ window.electronAPI.onMenuAction((action) => {
       setMouseCapture(true);
       chatInput.focus();
     }
+  } else if (action === 'test-idle-yawn') {
+    testIdleAnimation('yawn');
+  } else if (action === 'test-idle-stretch') {
+    testIdleAnimation('stretch');
+  } else if (action === 'test-idle-rub-eyes') {
+    testIdleAnimation('rub-eyes');
   }
 });
 
@@ -1677,6 +1696,30 @@ const DOUBLE_CLICK_EFFECTS = [
   { className: 'dbl-jelly',  durationMs: 850, particles: 'mixed',   glowColor: 'rgba(100,200,255,0.6)' },
 ];
 
+const YAWN_ACTIONS = [
+  {
+    key: 'yawn',
+    className: 'yawn-yawn',
+    containerClass: 'idle-yawning',
+    durationMs: 1100,
+    line: '（打哈欠）好困……'
+  },
+  {
+    key: 'stretch',
+    className: 'yawn-stretch',
+    containerClass: 'idle-stretching',
+    durationMs: 1500,
+    line: '（伸懒腰）啊——好舒服~'
+  },
+  {
+    key: 'rub-eyes',
+    className: 'yawn-rub-eyes',
+    containerClass: 'idle-rubbing',
+    durationMs: 1200,
+    line: '（揉眼睛）有点想睡觉了……'
+  },
+];
+
 let clickCount = 0;
 let clickTimer = null;
 
@@ -1816,6 +1859,87 @@ function spawnImpactRing() {
   ring.addEventListener('animationend', () => ring.remove(), { once: true });
 }
 
+// --- Idle animations (yawn / monologue) ---
+let isIdleAnimating = false;
+let idleYawnTimer = null;
+let idleMonologueTimer = null;
+
+function isUserInteracting() {
+  return isDragging || isChatOpen || isSettingsOpen || isMonitorOpen ||
+    isReminderOpen || isDblClickAnimating || isThinking ||
+    !snoozeBar.classList.contains('hidden') ||
+    !speechBubble.classList.contains('hidden');
+}
+
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function triggerYawn(actionKey = null, force = false) {
+  if (isIdleAnimating || (!force && isUserInteracting())) return;
+  isIdleAnimating = true;
+
+  const action = actionKey
+    ? YAWN_ACTIONS.find(a => a.key === actionKey)
+    : YAWN_ACTIONS[Math.floor(Math.random() * YAWN_ACTIONS.length)];
+  const chosen = action || YAWN_ACTIONS[0];
+  showSpeech(chosen.line, chosen.durationMs + 1200);
+
+  container.classList.add(chosen.containerClass);
+  petEl.classList.remove('idle');
+  petEl.classList.add(chosen.className);
+  petEl.addEventListener('animationend', function onYawnEnd() {
+    petEl.removeEventListener('animationend', onYawnEnd);
+    petEl.classList.remove(chosen.className);
+    container.classList.remove(chosen.containerClass);
+    render();
+    isIdleAnimating = false;
+  });
+}
+
+function scheduleYawn() {
+  stopYawn();
+  const delay = randomBetween(3 * 60 * 1000, 8 * 60 * 1000);
+  idleYawnTimer = setTimeout(() => {
+    triggerYawn();
+    scheduleYawn();
+  }, delay);
+}
+
+function stopYawn() {
+  if (idleYawnTimer) { clearTimeout(idleYawnTimer); idleYawnTimer = null; }
+}
+
+function clearIdleActionClasses() {
+  petEl.classList.remove('yawn-yawn', 'yawn-stretch', 'yawn-rub-eyes');
+  container.classList.remove('idle-yawning', 'idle-stretching', 'idle-rubbing');
+}
+
+function startIdleAnimations() {
+  scheduleYawn();
+}
+
+function stopIdleAnimations() {
+  stopYawn();
+}
+
+function resumeIdleAnimationsIfAllowed() {
+  if (!isUserInteracting()) startIdleAnimations();
+}
+
+function testIdleAnimation(kind) {
+  stopIdleAnimations();
+  isIdleAnimating = false;
+  clearIdleActionClasses();
+  if (kind === 'yawn') {
+    triggerYawn('yawn', true);
+  } else if (kind === 'stretch') {
+    triggerYawn('stretch', true);
+  } else if (kind === 'rub-eyes') {
+    triggerYawn('rub-eyes', true);
+  }
+}
+
 // --- Init ---
 reminderItems = loadReminderItems();
 checkDueReminders();
@@ -1824,3 +1948,4 @@ container.style.left = (window.innerWidth * 0.90) + 'px';
 render();
 reportRobotBounds();
 updateModelIndicator();
+startIdleAnimations();

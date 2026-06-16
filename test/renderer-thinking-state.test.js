@@ -40,6 +40,21 @@ test('openChat enables mouse capture to keep robot clickable after outside click
   assert.match(body, /setMouseCapture\(true\)/, 'openChat should enable mouse capture');
 });
 
+test('idle animations resume only when no UI remains open', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  assert.match(source, /function resumeIdleAnimationsIfAllowed\(\) \{/);
+  assert.match(source, /if \(!isUserInteracting\(\)\) startIdleAnimations\(\);/);
+  assert.match(source, /function closeSettings\(\) \{[\s\S]*resumeIdleAnimationsIfAllowed\(\);/);
+  assert.match(source, /function closeChat\(\) \{[\s\S]*resumeIdleAnimationsIfAllowed\(\);/);
+  assert.match(source, /action === 'test-idle-yawn'/);
+  assert.match(source, /action === 'test-idle-stretch'/);
+  assert.match(source, /action === 'test-idle-rub-eyes'/);
+  assert.match(source, /const idleActionClass = \['yawn-yawn', 'yawn-stretch', 'yawn-rub-eyes'\]/);
+  assert.match(source, /const YAWN_ACTIONS = \[/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /id="idle-effects"/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'), /#pet-container\.idle-yawning \.idle-mouth/);
+});
+
 test('switch-model action keeps chat input editable', () => {
   const source = fs.readFileSync(rendererPath, 'utf8');
   assert.match(source, /action\.startsWith\('switch-model:'\)/, 'switch-model handler should exist');

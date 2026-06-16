@@ -106,11 +106,16 @@ async function buildRobotMenuAsync() {
   }
 
   items.push(
+    { label: '🧪 测试空闲动作', submenu: [
+      { label: '😪 测试打哈欠', click: () => win && win.webContents.send('menu-action', 'test-idle-yawn') },
+      { label: '🤸 测试伸懒腰', click: () => win && win.webContents.send('menu-action', 'test-idle-stretch') },
+      { label: '🙈 测试揉眼睛', click: () => win && win.webContents.send('menu-action', 'test-idle-rub-eyes') }
+    ] },
+    { type: 'separator' },
     { label: '📊 系统监控', click: () => win && win.webContents.send('menu-action', 'system-monitor') },
     { label: '🔌 端口监控', click: () => win && win.webContents.send('menu-action', 'port-monitor') },
     { label: '⏰ 提醒中心', click: () => win && win.webContents.send('menu-action', 'reminder-center') },
     { label: '⚙️ 设置', click: () => win && win.webContents.send('menu-action', 'settings') },
-    { type: 'separator' },
     { label: '🚪 退出', click: () => app.quit() }
   );
 

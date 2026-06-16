@@ -62,5 +62,9 @@ test('preload exposes calendar fetch for reminder import', () => {
 test('main process includes reminder menu and calendar IPC', () => {
   const source = fs.readFileSync(mainPath, 'utf8');
   assert.match(source, /提醒中心/);
+  assert.match(source, /测试空闲动作/);
+  assert.match(source, /test-idle-yawn/);
+  assert.match(source, /test-idle-stretch/);
+  assert.match(source, /test-idle-rub-eyes/);
   assert.doesNotMatch(source, /ipcMain\.handle\('get-calendar-events'/);
 });
