@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+
+/**
+ * Desktop Robot - Quick start script
+ * 
+ * Usage:
+ *   robot-start        Start the desktop robot
+ *   robot-start --help Show this help message
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+
+const args = process.argv.slice(2);
+
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`
+  Desktop Robot - Quick Start
+
+  Usage:
+    robot-start        Start the desktop robot
+    robot-start --help Show this help message
+
+  The robot will run in the background as a floating window on your desktop.
+  `);
+  process.exit(0);
+}
+
+const robotDir = __dirname;
+const startScript = path.join(robotDir, 'scripts', 'start-electron.js');
+
+if (!fs.existsSync(startScript)) {
+  console.error('Error: start-electron.js not found. Make sure you are in the desktop-robot directory.');
+  process.exit(1);
+}
+
+const child = spawn('node', [startScript], {
+  cwd: robotDir,
+  detached: true,
+  stdio: 'ignore'
+});
+
+child.unref();
+
+console.log('🤖 Desktop Robot started!');
+console.log('   Floating on your desktop... (you can close this terminal)');

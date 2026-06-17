@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "桌面机器人",
   "main": "main.js",
+  "bin": {
+    "robot-start": "./robot-start"
+  },
   "scripts": {
     "start": "node scripts/start-electron.js",
     "test": "node --test"
