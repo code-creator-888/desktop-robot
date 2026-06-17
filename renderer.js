@@ -101,6 +101,17 @@ const DEFAULT_AUTO_WEB_FALLBACK = true;
 const DEFAULT_WEB_SEARCH_TOPK = 5;
 const REMINDER_STORAGE_KEY = 'reminderItems';
 
+function parseSettingsSafe() {
+  const saved = localStorage.getItem('aiSettings');
+  if (!saved) return {};
+  try {
+    const parsed = JSON.parse(saved);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function clampWebSearchTopK(value) {
   const n = Number.isFinite(Number(value)) ? Number(value) : DEFAULT_WEB_SEARCH_TOPK;
   if (n < 3) return 3;
@@ -167,6 +178,8 @@ function initSession() {
 
 window.electronAPI.getEnvConfig().then((cfg) => {
   envConfig = cfg || { baseUrl: '', model: '', apiKey: '' };
+}).catch(() => {
+  envConfig = { baseUrl: '', model: '', apiKey: '' };
 });
 
 function getPet() {
@@ -174,8 +187,7 @@ function getPet() {
 }
 
 function getSystemPrompt() {
-  const saved = localStorage.getItem('aiSettings');
-  const settings = saved ? JSON.parse(saved) : {};
+  const settings = parseSettingsSafe();
   if (settings.systemPrompt && settings.systemPrompt.trim()) {
     return settings.systemPrompt.trim();
   }
@@ -645,13 +657,12 @@ function updateTranslateSettingsVisibility() {
 }
 
 function loadSettings() {
-  const saved = localStorage.getItem('aiSettings');
-  const settings = saved ? JSON.parse(saved) : {};
+  const settings = parseSettingsSafe();
   const autoWebFallback = settings.autoWebFallback !== false;
   const webSearchTopK = clampWebSearchTopK(settings.webSearchTopK);
   const translateModelMode = settings.translateModelMode === 'custom' ? 'custom' : 'same';
 
-  if (saved) {
+  if (Object.keys(settings).length > 0) {
     settingPetName.value = settings.petName || '';
     settingSystemPrompt.value = settings.systemPrompt || '';
   } else {
@@ -673,8 +684,7 @@ function loadSettings() {
 function getSettings() {
   const model = getActiveModel();
   if (!model || !model.baseUrl || !model.model || !model.apiKey) return null;
-  const saved = localStorage.getItem('aiSettings');
-  const extra = saved ? JSON.parse(saved) : {};
+  const extra = parseSettingsSafe();
   return {
     baseUrl: model.baseUrl,
     model: model.model,
@@ -703,8 +713,7 @@ function saveSettings() {
 }
 
 function getTranslateModelConfig() {
-  const saved = localStorage.getItem('aiSettings');
-  const settings = saved ? JSON.parse(saved) : {};
+  const settings = parseSettingsSafe();
   const mode = settings.translateModelMode === 'custom' ? 'custom' : 'same';
   if (mode === 'same') return getSettings();
 

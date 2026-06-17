@@ -82,7 +82,7 @@ test('mousemove passthrough should not disable capture while chat is open', () =
   const source = fs.readFileSync(rendererPath, 'utf8');
   assert.match(source, /const overChatPanel = !!\(el && el\.closest\('#chat-panel'\)\);/, 'mousemove handler should detect chat panel hover');
   assert.match(source, /const overReminderCenter = !!\(el && el\.closest\('#reminder-center'\)\);/, 'mousemove handler should detect reminder center hover');
-  assert.match(source, /setMouseCapture\(overContainer \|\| overChatPanel \|\| overReminderCenter\);/, 'mousemove handler should keep capture for robot, chat panel, or reminder center');
+  assert.match(source, /setMouseCapture\(overContainer \|\| overChatPanel \|\| overReminderCenter \|\| overSpeechBubble\);/, 'mousemove handler should keep capture for robot, chat panel, reminder center, or speech bubble');
 });
 
 test('render toggles thinking-tech class by isThinking', () => {

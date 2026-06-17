@@ -279,10 +279,12 @@ ipcMain.handle('chat', async (event, { baseUrl, model, apiKey, messages, provide
               const textBlock = json.content?.find?.(c => c.type === 'text');
               if (textBlock && textBlock.text) {
                 resolve(textBlock.text);
+                return;
               }
               const thinkingBlock = json.content?.find?.(c => c.type === 'thinking');
               if (thinkingBlock && thinkingBlock.thinking) {
                 resolve(thinkingBlock.thinking);
+                return;
               }
               reject(new Error('Unexpected Anthropic response: ' + JSON.stringify(json).slice(0, 200)));
             } else {
