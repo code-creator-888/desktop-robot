@@ -1,14 +1,13 @@
-const { app, BrowserWindow, screen, Tray, Menu, ipcMain, nativeImage, clipboard } = require('electron');
+const { app, BrowserWindow, screen, Tray, Menu, ipcMain, nativeImage, clipboard, safeStorage } = require('electron');
 const path = require('path');
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 const os = require('os');
 const fs = require('fs');
-const { exec, execFile } = require('child_process');
+const { execFile } = require('child_process');
 const util = require('util');
 const { dedupeResults, normalizeWebSearchPayload } = require('./lib/web-fallback');
-const execAsync = util.promisify(exec);
 const execFileAsync = util.promisify(execFile);
 
 let uIOhook = null;
@@ -21,6 +20,55 @@ try {
 
 let translateInProgress = false;
 let cmdPressed = false, shiftPressed = false;
+let modelMenuState = { models: [], activeId: '' };
+
+const PROTECTED_SECRET_PREFIX = 'safe:v1:';
+const LEGACY_SECRET_PREFIX = 'plain:v1:';
+
+function isProtectedSecret(value) {
+  return typeof value === 'string' && (
+    value.startsWith(PROTECTED_SECRET_PREFIX) ||
+    value.startsWith(LEGACY_SECRET_PREFIX)
+  );
+}
+
+function protectSecret(secret) {
+  const value = String(secret || '');
+  if (!value) return '';
+  if (isProtectedSecret(value)) return value;
+  if (safeStorage.isEncryptionAvailable()) {
+    return PROTECTED_SECRET_PREFIX + safeStorage.encryptString(value).toString('base64');
+  }
+  return LEGACY_SECRET_PREFIX + Buffer.from(value, 'utf8').toString('base64');
+}
+
+function unprotectSecret(secret) {
+  const value = String(secret || '');
+  if (!value) return '';
+  if (value.startsWith(PROTECTED_SECRET_PREFIX)) {
+    const encrypted = Buffer.from(value.slice(PROTECTED_SECRET_PREFIX.length), 'base64');
+    return safeStorage.decryptString(encrypted);
+  }
+  if (value.startsWith(LEGACY_SECRET_PREFIX)) {
+    return Buffer.from(value.slice(LEGACY_SECRET_PREFIX.length), 'base64').toString('utf8');
+  }
+  return value;
+}
+
+function normalizeModelMenuState(state) {
+  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    return { models: [], activeId: '' };
+  }
+  const models = Array.isArray(state.models) ? state.models.slice(0, 30).map((model) => ({
+    id: String(model?.id || '').slice(0, 100),
+    name: String(model?.name || '').slice(0, 80)
+  })).filter(model => model.id && model.name) : [];
+  const activeId = String(state.activeId || '');
+  return {
+    models,
+    activeId: models.some(model => model.id === activeId) ? activeId : ''
+  };
+}
 
 async function handleTranslateShortcut() {
   if (translateInProgress) return;
@@ -37,7 +85,7 @@ async function handleTranslateShortcut() {
     });
     await new Promise(r => setTimeout(r, 50));
     const oldClip = clipboard.readText();
-    await execAsync(`osascript -e 'tell application "System Events" to keystroke "c" using command down'`);
+    await execFileAsync('/usr/bin/osascript', ['-e', 'tell application "System Events" to keystroke "c" using command down']);
     await new Promise(r => setTimeout(r, 300));
     const selected = clipboard.readText().trim();
     setTimeout(() => clipboard.writeText(oldClip), 500);
@@ -81,21 +129,11 @@ let robotBounds = null; // { x, y, width, height } in screen coords
 let lastMouseX = 0, lastMouseY = 0;
 
 async function buildRobotMenuAsync() {
-  let modelItems = [];
-  let activeId = '';
-  if (win) {
-    try {
-      const raw = await win.webContents.executeJavaScript('localStorage.getItem("modelConfigs")');
-      if (raw) {
-        const configs = JSON.parse(raw);
-        activeId = configs.activeId || '';
-        modelItems = (configs.models || []).map(m => ({
-          label: m.name + (m.id === activeId ? ' ✓' : ''),
-          click: () => win && win.webContents.send('menu-action', 'switch-model:' + m.id)
-        }));
-      }
-    } catch {}
-  }
+  const { models, activeId } = modelMenuState;
+  const modelItems = models.map(m => ({
+    label: m.name + (m.id === activeId ? ' ✓' : ''),
+    click: () => win && win.webContents.send('menu-action', 'switch-model:' + m.id)
+  }));
 
   const items = [
     { label: '💬 聊天', click: () => win && win.webContents.send('menu-action', 'chat') },
@@ -202,8 +240,14 @@ ipcMain.on('quit-app', () => {
   app.quit();
 });
 
+ipcMain.on('set-model-menu-state', (_event, state) => {
+  modelMenuState = normalizeModelMenuState(state);
+});
+
 ipcMain.handle('chat', async (event, { baseUrl, model, apiKey, messages, provider }) => {
   try {
+    const resolvedApiKey = unprotectSecret(apiKey);
+    if (!resolvedApiKey) return { success: false, error: 'Missing API key' };
     const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
     const isAnthropic = provider === 'anthropic';
 
@@ -227,7 +271,7 @@ ipcMain.handle('chat', async (event, { baseUrl, model, apiKey, messages, provide
 
       const headers = {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
+        'x-api-key': resolvedApiKey,
         'Content-Length': Buffer.byteLength(postData)
       };
       if (anthropicBase.includes('anthropic.com')) {
@@ -247,7 +291,7 @@ ipcMain.handle('chat', async (event, { baseUrl, model, apiKey, messages, provide
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${resolvedApiKey}`,
           'Content-Length': Buffer.byteLength(postData)
         }
       };
@@ -387,15 +431,27 @@ ipcMain.handle('get-hot-news', async (_event, count = 3) => {
 });
 
 ipcMain.handle('get-env-api-key', () => {
-  return process.env.ANTHROPIC_API_KEY || '';
+  return protectSecret(process.env.ANTHROPIC_API_KEY || '');
 });
 
 ipcMain.handle('get-env-config', () => {
   return {
     baseUrl: process.env.ANTHROPIC_BASE_URL || '',
     model: process.env.ANTHROPIC_DEFAULT_SONNET_MODEL || '',
-    apiKey: process.env.ANTHROPIC_API_KEY || ''
+    apiKey: protectSecret(process.env.ANTHROPIC_API_KEY || '')
   };
+});
+
+ipcMain.handle('protect-secret', (_event, secret) => {
+  try {
+    return {
+      success: true,
+      value: protectSecret(secret),
+      encrypted: safeStorage.isEncryptionAvailable()
+    };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 });
 
 // ─── System Monitor ───────────────────────────────────────────────────────────
@@ -446,12 +502,16 @@ async function getTopProcesses() {
 
 async function getNetStats() {
   try {
-    const { stdout } = await execAsync(
-      "netstat -ibn 2>/dev/null | awk 'NR>1 && $1!~/^lo/ && $1!~/^Name/ && $4!~/^Address/ {ibytes+=$7; obytes+=$10} END {print ibytes, obytes}'",
-      { timeout: 10000 }
-    );
-    const parts = stdout.trim().split(/\s+/);
-    return { inBytes: parseInt(parts[0], 10) || 0, outBytes: parseInt(parts[1], 10) || 0 };
+    const { stdout } = await execFileAsync('/usr/sbin/netstat', ['-ibn'], { timeout: 10000 });
+    let inBytes = 0;
+    let outBytes = 0;
+    for (const line of stdout.split('\n')) {
+      const columns = line.trim().split(/\s+/);
+      if (columns.length < 10 || columns[0] === 'Name' || columns[0].startsWith('lo') || columns[3] === 'Address') continue;
+      inBytes += Number.parseInt(columns[6], 10) || 0;
+      outBytes += Number.parseInt(columns[9], 10) || 0;
+    }
+    return { inBytes, outBytes };
   } catch {
     return { inBytes: 0, outBytes: 0 };
   }
@@ -459,10 +519,7 @@ async function getNetStats() {
 
 async function getDiskStats() {
   try {
-    const { stdout } = await execAsync(
-      "ioreg -c IOBlockStorageDriver -r -k Statistics 2>/dev/null | grep Statistics",
-      { timeout: 10000 }
-    );
+    const { stdout } = await execFileAsync('/usr/sbin/ioreg', ['-c', 'IOBlockStorageDriver', '-r', '-k', 'Statistics'], { timeout: 10000 });
     let totalRead = 0, totalWrite = 0;
     for (const m of stdout.matchAll(/"Bytes \(Read\)"=(\d+)/g)) totalRead += parseInt(m[1], 10);
     for (const m of stdout.matchAll(/"Bytes \(Write\)"=(\d+)/g)) totalWrite += parseInt(m[1], 10);
@@ -474,10 +531,11 @@ async function getDiskStats() {
 
 async function getCpuUsage(processes) {
   try {
-    const { stdout } = await execAsync("top -l 2 -n 0 -s 1 | grep 'CPU usage' | tail -1", { timeout: 15000 });
-    const match = stdout.match(/(\d+\.?\d*)\s*%\s*user.*?(\d+\.?\d*)\s*%\s*sys/);
+    const { stdout } = await execFileAsync('/usr/bin/top', ['-l', '2', '-n', '0', '-s', '1'], { timeout: 15000 });
+    const cpuLine = stdout.split('\n').filter(line => line.includes('CPU usage')).pop() || '';
+    const match = cpuLine.match(/(\d+\.?\d*)\s*%\s*user.*?(\d+\.?\d*)\s*%\s*sys/);
     if (match) return (parseFloat(match[1]) + parseFloat(match[2])).toFixed(1) + '%';
-    const m2 = stdout.match(/(\d+\.?\d*)\s*%\s*user/);
+    const m2 = cpuLine.match(/(\d+\.?\d*)\s*%\s*user/);
     if (m2) return parseFloat(m2[1]).toFixed(1) + '%';
   } catch {}
   if (processes.length > 0) {
@@ -599,6 +657,18 @@ function savePorts(ports) {
   fs.writeFileSync(PORTS_FILE, ports.join('\n') + '\n', 'utf-8');
 }
 
+function normalizePort(port) {
+  const n = Number(port);
+  if (!Number.isInteger(n) || n < 1 || n > 65535) return null;
+  return n;
+}
+
+function normalizePid(pid) {
+  const n = Number(pid);
+  if (!Number.isInteger(n) || n <= 0 || n === process.pid) return null;
+  return n;
+}
+
 async function scanListeningProcesses() {
   try {
     const { stdout } = await execFileAsync('/usr/sbin/lsof', ['-nP', '+c', '0', '-iTCP', '-sTCP:LISTEN'], { timeout: 10000 });
@@ -689,19 +759,20 @@ ipcMain.handle('get-port-stats', async () => {
 });
 
 ipcMain.handle('kill-process', async (event, pid) => {
-  if (!Number.isInteger(pid) || pid <= 0) {
+  const normalizedPid = normalizePid(pid);
+  if (!normalizedPid) {
     return { success: false, error: '无效 PID' };
   }
   try {
-    await execAsync(`kill -TERM ${pid} 2>&1`, { timeout: 5000 });
+    process.kill(normalizedPid, 'SIGTERM');
   } catch (e) {
     return { success: false, error: e.message || String(e) };
   }
   // Wait briefly then SIGKILL if still alive
   await new Promise(r => setTimeout(r, 600));
   try {
-    process.kill(pid, 0); // throws if process is gone
-    await execAsync(`kill -KILL ${pid} 2>&1`, { timeout: 5000 });
+    process.kill(normalizedPid, 0); // throws if process is gone
+    process.kill(normalizedPid, 'SIGKILL');
   } catch {
     // process already gone, that's fine
   }
@@ -710,9 +781,11 @@ ipcMain.handle('kill-process', async (event, pid) => {
 
 ipcMain.handle('add-port', async (event, port) => {
   try {
+    const normalizedPort = normalizePort(port);
+    if (!normalizedPort) return { success: false, error: '无效端口' };
     const ports = loadPorts();
-    if (ports.includes(port)) return { success: false, error: '端口已存在' };
-    ports.push(port);
+    if (ports.includes(normalizedPort)) return { success: false, error: '端口已存在' };
+    ports.push(normalizedPort);
     ports.sort((a, b) => a - b);
     savePorts(ports);
     return { success: true, ports };
@@ -723,7 +796,9 @@ ipcMain.handle('add-port', async (event, port) => {
 
 ipcMain.handle('remove-port', async (event, port) => {
   try {
-    const ports = loadPorts().filter(p => p !== port);
+    const normalizedPort = normalizePort(port);
+    if (!normalizedPort) return { success: false, error: '无效端口' };
+    const ports = loadPorts().filter(p => p !== normalizedPort);
     savePorts(ports);
     return { success: true, ports };
   } catch (e) {

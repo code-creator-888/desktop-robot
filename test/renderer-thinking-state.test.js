@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const rendererPath = path.join(__dirname, '..', 'renderer.js');
+const rendererChatPath = path.join(__dirname, '..', 'renderer-chat.js');
 
 function extractFunctionBody(source, signature) {
   const start = source.indexOf(signature);
@@ -24,18 +25,18 @@ function extractFunctionBody(source, signature) {
 }
 
 test('sendMessage keeps thinking state until fallback pipeline ends', () => {
-  const source = fs.readFileSync(rendererPath, 'utf8');
+  const source = fs.readFileSync(rendererChatPath, 'utf8');
   const body = extractFunctionBody(source, 'async function sendMessage() {');
 
-  assert.match(body, /isThinking\s*=\s*true\s*;/, 'sendMessage should set isThinking=true');
-  assert.match(body, /try\s*\{[\s\S]*\}\s*finally\s*\{[\s\S]*isThinking\s*=\s*false\s*;[\s\S]*\}/, 'isThinking=false should only be reset in finally');
+  assert.match(body, /setThinking\(true\)\s*;/, 'sendMessage should set thinking=true');
+  assert.match(body, /try\s*\{[\s\S]*\}\s*finally\s*\{[\s\S]*setThinking\(false\)\s*;[\s\S]*\}/, 'thinking=false should only be reset in finally');
 
-  const resets = body.match(/isThinking\s*=\s*false\s*;/g) || [];
-  assert.equal(resets.length, 1, 'should reset isThinking=false exactly once');
+  const resets = body.match(/setThinking\(false\)\s*;/g) || [];
+  assert.equal(resets.length, 1, 'should reset thinking=false exactly once');
 });
 
 test('openChat enables mouse capture to keep robot clickable after outside clicks', () => {
-  const source = fs.readFileSync(rendererPath, 'utf8');
+  const source = fs.readFileSync(rendererChatPath, 'utf8');
   const body = extractFunctionBody(source, 'function openChat() {');
   assert.match(body, /setMouseCapture\(true\)/, 'openChat should enable mouse capture');
 });

@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getHotNews: (count) => ipcRenderer.invoke('get-hot-news', count),
   getEnvApiKey: () => ipcRenderer.invoke('get-env-api-key'),
   getEnvConfig: () => ipcRenderer.invoke('get-env-config'),
+  protectSecret: (secret) => ipcRenderer.invoke('protect-secret', secret),
   getSystemStats: () => ipcRenderer.invoke('get-system-stats'),
   getPortStats: () => ipcRenderer.invoke('get-port-stats'),
   killProcess: (pid) => ipcRenderer.invoke('kill-process', pid),
@@ -18,6 +19,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removePort: (port) => ipcRenderer.invoke('remove-port', port),
   getPortList: () => ipcRenderer.invoke('get-port-list'),
   setRobotBounds: (bounds) => ipcRenderer.send('set-robot-bounds', bounds),
+  setModelMenuState: (state) => ipcRenderer.send('set-model-menu-state', state),
   onTranslateSelection: (cb) => ipcRenderer.on('translate-selection', (_, text) => cb(text)),
   onRobotClick: (cb) => ipcRenderer.on('robot-click', () => cb())
 });

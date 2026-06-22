@@ -67,6 +67,8 @@ const reminderAddTime = document.getElementById('reminder-add-time');
 const reminderRuleType = document.getElementById('reminder-rule-type');
 const reminderAddBtn = document.getElementById('reminder-add-btn');
 const reminderListEl = document.getElementById('reminder-list');
+const { appendTextElement, appendButton, appendReminderRuleOptions } = window.RobotDOM;
+const { renderProcessList, renderWatchedPorts, renderAllPorts } = window.RobotMonitor;
 
 let currentPet = 'robot';
 let facingLeft = false;
@@ -82,98 +84,19 @@ let isReminderOpen = false;
 let isDblClickAnimating = false;
 let systemMonitorInterval = null;
 let portMonitorInterval = null;
-let countdownInterval = null;
-let chatMessagesList = [];
-let currentSessionId = null;
+let systemStatsInFlight = false;
+let portStatsInFlight = false;
 let envConfig = { baseUrl: '', model: '', apiKey: '' };
-let reminderItems = [];
-let editingReminderId = null;
 let robot3D = null;
 let robot3DResizeObserver = null;
 let robot3DWindowResizeHandler = null;
 let currentPetSrc = '';
-
-// --- Session management ---
-const MAX_SESSIONS = 10;
-const SESSIONS_KEY = 'chatSessions';
-const LAST_SESSION_KEY = 'lastSessionId';
-const DEFAULT_AUTO_WEB_FALLBACK = true;
-const DEFAULT_WEB_SEARCH_TOPK = 5;
-const REMINDER_STORAGE_KEY = 'reminderItems';
+let reminderController = null;
+let settingsController = null;
+let chatController = null;
 
 function parseSettingsSafe() {
-  const saved = localStorage.getItem('aiSettings');
-  if (!saved) return {};
-  try {
-    const parsed = JSON.parse(saved);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function clampWebSearchTopK(value) {
-  const n = Number.isFinite(Number(value)) ? Number(value) : DEFAULT_WEB_SEARCH_TOPK;
-  if (n < 3) return 3;
-  if (n > 8) return 8;
-  return Math.floor(n);
-}
-
-function loadSessions() {
-  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; } catch { return []; }
-}
-
-function saveSessions(sessions) {
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
-}
-
-function saveCurrentSession() {
-  if (!currentSessionId || chatMessagesList.length === 0) return;
-  let sessions = loadSessions();
-  const idx = sessions.findIndex(s => s.id === currentSessionId);
-  const preview = chatMessagesList[chatMessagesList.length - 1]?.content?.slice(0, 30) || '';
-  if (idx >= 0) {
-    sessions[idx].messages = chatMessagesList;
-    sessions[idx].preview = preview;
-    sessions[idx].updatedAt = Date.now();
-  } else {
-    sessions.unshift({ id: currentSessionId, messages: chatMessagesList, preview, createdAt: currentSessionId, updatedAt: Date.now() });
-  }
-  sessions.sort((a, b) => b.updatedAt - a.updatedAt);
-  if (sessions.length > MAX_SESSIONS) sessions = sessions.slice(0, MAX_SESSIONS);
-  saveSessions(sessions);
-  localStorage.setItem(LAST_SESSION_KEY, currentSessionId);
-}
-
-function startNewSession() {
-  saveCurrentSession();
-  currentSessionId = Date.now();
-  chatMessagesList = [];
-}
-
-function switchToSession(id) {
-  saveCurrentSession();
-  const sessions = loadSessions();
-  const session = sessions.find(s => s.id === id);
-  if (!session) return;
-  currentSessionId = session.id;
-  chatMessagesList = session.messages || [];
-  localStorage.setItem(LAST_SESSION_KEY, currentSessionId);
-}
-
-function initSession() {
-  const lastId = parseInt(localStorage.getItem(LAST_SESSION_KEY), 10);
-  if (lastId) {
-    const sessions = loadSessions();
-    const last = sessions.find(s => s.id === lastId);
-    if (last) {
-      currentSessionId = last.id;
-      chatMessagesList = last.messages || [];
-      return;
-    }
-  }
-  currentSessionId = Date.now();
-  chatMessagesList = [];
+  return settingsController ? settingsController.parseSettingsSafe() : {};
 }
 
 window.electronAPI.getEnvConfig().then((cfg) => {
@@ -235,7 +158,7 @@ function render() {
 
 function showSpeech(text, duration, persistent, type) {
   snoozeBar.classList.add('hidden');
-  currentAlertItem = null;
+  if (reminderController) reminderController.clearCurrentAlert();
   speechBubble.textContent = text;
   speechBubble.classList.remove('hidden', 'wrap', 'news');
   speechBubble.classList.toggle('clickable', !!persistent);
@@ -444,859 +367,147 @@ function initRobot3D() {
   return robot3D;
 }
 
-// --- Model config management ---
-const MODEL_CONFIGS_KEY = 'modelConfigs';
-
-function loadModelConfigs() {
-  try {
-    const raw = localStorage.getItem(MODEL_CONFIGS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return null;
-}
-
-function saveModelConfigs(configs) {
-  localStorage.setItem(MODEL_CONFIGS_KEY, JSON.stringify(configs));
-}
-
-function migrateOldSettings() {
-  if (loadModelConfigs()) return;
-  const saved = localStorage.getItem('aiSettings');
-  if (!saved) return;
-  try {
-    const old = JSON.parse(saved);
-    if (old.baseUrl || old.model || old.apiKey) {
-      const provider = old.provider || (old.baseUrl && old.baseUrl.includes('anthropic') ? 'anthropic' : 'openai');
-      const id = Date.now().toString();
-      saveModelConfigs({
-        models: [{
-          id,
-          name: old.model || '默认模型',
-          provider,
-          model: old.model || '',
-          baseUrl: old.baseUrl || '',
-          apiKey: old.apiKey || ''
-        }],
-        activeId: id
-      });
-    }
-  } catch {}
-}
-migrateOldSettings();
-
-function getModelConfigs() {
-  let configs = loadModelConfigs();
-  if (!configs) {
-    const id = Date.now().toString();
-    configs = { models: [], activeId: '' };
+settingsController = window.RobotSettings.createSettingsController({
+  elements: {
+    settingsModal,
+    settingPetName,
+    settingSystemPrompt,
+    settingAutoWebFallback,
+    settingWebSearchTopK,
+    settingTranslateModelMode,
+    settingTranslateCustom,
+    settingTranslateBaseUrl,
+    settingTranslateModel,
+    settingTranslateApiKey,
+    modelListEl,
+    modelAddBtn,
+    modelEditForm,
+    editModelName,
+    editModelProvider,
+    editModelId,
+    editModelBaseUrl,
+    editModelApiKey,
+    editModelSave,
+    editModelCancel,
+    chatModelIndicator,
+    settingSave,
+    settingCancel
+  },
+  stopIdleAnimations,
+  resumeIdleAnimationsIfAllowed,
+  setMouseCapture,
+  updateMouseCapture,
+  setSettingsOpen: (open) => {
+    isSettingsOpen = open;
   }
-  return configs;
-}
+});
 
-function getActiveModel() {
-  const configs = getModelConfigs();
-  return configs.models.find(m => m.id === configs.activeId) || null;
-}
-
-function switchModel(id) {
-  const configs = getModelConfigs();
-  if (configs.models.some(m => m.id === id)) {
-    configs.activeId = id;
-    saveModelConfigs(configs);
-    updateModelIndicator();
-  }
-}
-
-let editingModelId = null;
-
-function renderModelList() {
-  const configs = getModelConfigs();
-  modelListEl.innerHTML = '';
-  if (configs.models.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'model-item';
-    empty.innerHTML = '<span style="color:#999;font-size:12px">暂无模型，点击下方添加</span>';
-    modelListEl.appendChild(empty);
-    return;
-  }
-  configs.models.forEach(m => {
-    const item = document.createElement('div');
-    item.className = 'model-item' + (m.id === configs.activeId ? ' active' : '');
-
-    const dot = document.createElement('span');
-    dot.className = 'model-item-dot';
-
-    const name = document.createElement('span');
-    name.className = 'model-item-name';
-    name.textContent = m.name;
-
-    const detail = document.createElement('span');
-    detail.className = 'model-item-detail';
-    detail.textContent = m.model;
-
-    const actions = document.createElement('div');
-    actions.className = 'model-item-actions';
-
-    const editBtn = document.createElement('button');
-    editBtn.className = 'model-item-btn';
-    editBtn.textContent = '编辑';
-    editBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openModelEditForm(m.id);
-    });
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'model-item-btn delete';
-    delBtn.textContent = '✕';
-    delBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteModel(m.id);
-    });
-
-    actions.appendChild(editBtn);
-    actions.appendChild(delBtn);
-
-    item.appendChild(dot);
-    item.appendChild(name);
-    item.appendChild(detail);
-    item.appendChild(actions);
-
-    item.addEventListener('click', () => {
-      switchModel(m.id);
-      renderModelList();
-    });
-
-    modelListEl.appendChild(item);
-  });
-}
-
-function openModelEditForm(id) {
-  editingModelId = id || null;
-  if (id) {
-    const configs = getModelConfigs();
-    const m = configs.models.find(x => x.id === id);
-    if (!m) return;
-    editModelName.value = m.name;
-    editModelProvider.value = m.provider || 'openai';
-    editModelId.value = m.model || '';
-    editModelBaseUrl.value = m.baseUrl || '';
-    editModelApiKey.value = m.apiKey || '';
-  } else {
-    editModelName.value = '';
-    editModelProvider.value = 'openai';
-    editModelId.value = '';
-    editModelBaseUrl.value = '';
-    editModelApiKey.value = '';
-  }
-  modelEditForm.classList.remove('hidden');
-  editModelName.focus();
-}
-
-function closeModelEditForm() {
-  editingModelId = null;
-  modelEditForm.classList.add('hidden');
-}
-
-function saveModelEdit() {
-  const name = editModelName.value.trim();
-  const model = editModelId.value.trim();
-  if (!name || !model) return;
-
-  const configs = getModelConfigs();
-  if (editingModelId) {
-    const m = configs.models.find(x => x.id === editingModelId);
-    if (m) {
-      m.name = name;
-      m.provider = editModelProvider.value;
-      m.model = model;
-      m.baseUrl = editModelBaseUrl.value.trim();
-      m.apiKey = editModelApiKey.value.trim();
-    }
-  } else {
-    const id = Date.now().toString();
-    configs.models.push({
-      id,
-      name,
-      provider: editModelProvider.value,
-      model,
-      baseUrl: editModelBaseUrl.value.trim(),
-      apiKey: editModelApiKey.value.trim()
-    });
-    if (!configs.activeId) configs.activeId = id;
-  }
-  saveModelConfigs(configs);
-  closeModelEditForm();
-  renderModelList();
-  updateModelIndicator();
-}
-
-function deleteModel(id) {
-  const configs = getModelConfigs();
-  configs.models = configs.models.filter(m => m.id !== id);
-  if (configs.activeId === id) {
-    configs.activeId = configs.models.length > 0 ? configs.models[0].id : '';
-  }
-  saveModelConfigs(configs);
-  renderModelList();
-  updateModelIndicator();
+function initializeProtectedSecrets() {
+  return settingsController.initializeProtectedSecrets();
 }
 
 function updateModelIndicator() {
-  const m = getActiveModel();
-  chatModelIndicator.textContent = m ? m.name : '';
+  return settingsController.updateModelIndicator();
 }
 
-modelAddBtn.addEventListener('click', () => openModelEditForm(null));
-editModelSave.addEventListener('click', saveModelEdit);
-editModelCancel.addEventListener('click', closeModelEditForm);
-
-// --- Settings ---
-function updateTranslateSettingsVisibility() {
-  const isCustom = settingTranslateModelMode.value === 'custom';
-  settingTranslateCustom.classList.toggle('hidden', !isCustom);
-}
-
-function loadSettings() {
-  const settings = parseSettingsSafe();
-  const autoWebFallback = settings.autoWebFallback !== false;
-  const webSearchTopK = clampWebSearchTopK(settings.webSearchTopK);
-  const translateModelMode = settings.translateModelMode === 'custom' ? 'custom' : 'same';
-
-  if (Object.keys(settings).length > 0) {
-    settingPetName.value = settings.petName || '';
-    settingSystemPrompt.value = settings.systemPrompt || '';
-  } else {
-    settingPetName.value = '';
-    settingSystemPrompt.value = '';
-  }
-
-  settingAutoWebFallback.checked = autoWebFallback;
-  settingWebSearchTopK.value = String(webSearchTopK);
-  settingTranslateModelMode.value = translateModelMode;
-  settingTranslateBaseUrl.value = settings.translateBaseUrl || '';
-  settingTranslateModel.value = settings.translateModel || '';
-  settingTranslateApiKey.value = settings.translateApiKey || '';
-  updateTranslateSettingsVisibility();
-  renderModelList();
-  closeModelEditForm();
+function switchModel(id) {
+  return settingsController.switchModel(id);
 }
 
 function getSettings() {
-  const model = getActiveModel();
-  if (!model || !model.baseUrl || !model.model || !model.apiKey) return null;
-  const extra = parseSettingsSafe();
-  return {
-    baseUrl: model.baseUrl,
-    model: model.model,
-    apiKey: model.apiKey,
-    provider: model.provider || 'openai',
-    petName: extra.petName || '',
-    systemPrompt: extra.systemPrompt || '',
-    autoWebFallback: extra.autoWebFallback !== false,
-    webSearchTopK: clampWebSearchTopK(extra.webSearchTopK)
-  };
-}
-
-function saveSettings() {
-  const settings = {
-    petName: settingPetName.value.trim(),
-    systemPrompt: settingSystemPrompt.value.trim(),
-    autoWebFallback: !!settingAutoWebFallback.checked,
-    webSearchTopK: clampWebSearchTopK(settingWebSearchTopK.value),
-    translateModelMode: settingTranslateModelMode.value === 'custom' ? 'custom' : 'same',
-    translateBaseUrl: settingTranslateBaseUrl.value.trim(),
-    translateModel: settingTranslateModel.value.trim(),
-    translateApiKey: settingTranslateApiKey.value.trim()
-  };
-  localStorage.setItem('aiSettings', JSON.stringify(settings));
-  closeSettings();
+  return settingsController.getSettings();
 }
 
 function getTranslateModelConfig() {
-  const settings = parseSettingsSafe();
-  const mode = settings.translateModelMode === 'custom' ? 'custom' : 'same';
-  if (mode === 'same') return getSettings();
-
-  const baseUrl = (settings.translateBaseUrl || '').trim();
-  const model = (settings.translateModel || '').trim();
-  const apiKey = (settings.translateApiKey || '').trim();
-  if (!baseUrl || !model || !apiKey) return null;
-  return {
-    baseUrl,
-    model,
-    apiKey,
-    provider: 'openai'
-  };
+  return settingsController.getTranslateModelConfig();
 }
 
 function openSettings() {
-  isSettingsOpen = true;
-  stopIdleAnimations();
-  loadSettings();
-  settingsModal.classList.remove('hidden');
-  setMouseCapture(true);
+  return settingsController.openSettings();
 }
 
 function closeSettings() {
-  isSettingsOpen = false;
-  settingsModal.classList.add('hidden');
-  resumeIdleAnimationsIfAllowed();
-  updateMouseCapture();
+  return settingsController.closeSettings();
 }
 
-function loadReminderItems() {
-  try {
-    const raw = localStorage.getItem(REMINDER_STORAGE_KEY);
-    if (!raw) return [];
-    const items = JSON.parse(raw);
-    if (!Array.isArray(items)) return [];
-    return items
-      .filter(item => item && item.id && item.title && (item.dueAt || item.nextTriggerAt))
-      .map((item) => {
-        const ruleType = item.rule?.type || 'one-time';
-        return {
-          ...item,
-          rule: {
-            type: ['one-time', 'daily', 'weekly', 'workday'].includes(ruleType) ? ruleType : 'one-time'
-          },
-          nextTriggerAt: item.nextTriggerAt || item.dueAt
-        };
-      });
-  } catch {
-    return [];
-  }
-}
-
-function saveReminderItems() {
-  localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(reminderItems));
-}
-
-function formatReminderTime(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '-';
-  return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
-function isoToLocalInput(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-}
-
-function formatReminderRule(type) {
-  if (type === 'daily') return '每天';
-  if (type === 'weekly') return '每周';
-  if (type === 'workday') return '工作日';
-  return '仅一次';
-}
-
-function formatCountdown(ms) {
-  if (ms <= 0) return '已到时间';
-  const totalSec = Math.floor(ms / 1000);
-  const d = Math.floor(totalSec / 86400);
-  const h = Math.floor((totalSec % 86400) / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (d > 0) return d + '天 ' + h + '小时';
-  if (h > 0) return h + '小时 ' + m + '分';
-  if (m > 0) return m + '分 ' + s + '秒';
-  return s + '秒';
-}
-
-function computeNextTriggerAt(item, nowTs) {
-  const base = new Date(nowTs);
-  if (Number.isNaN(base.getTime())) return null;
-  const ruleType = item.rule?.type || 'one-time';
-  if (ruleType === 'one-time') return null;
-  if (ruleType === 'daily') {
-    return new Date(base.getTime() + 24 * 60 * 60 * 1000).toISOString();
-  }
-  if (ruleType === 'weekly') {
-    return new Date(base.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  }
-  if (ruleType === 'workday') {
-    const d = new Date(base);
-    do {
-      d.setDate(d.getDate() + 1);
-    } while (d.getDay() === 0 || d.getDay() === 6);
-    return d.toISOString();
-  }
-  return null;
-}
-
-function renderReminderList() {
-  if (!reminderListEl) return;
-  reminderListEl.innerHTML = '';
-  const sorted = [...reminderItems].sort((a, b) => new Date(a.nextTriggerAt || a.dueAt).getTime() - new Date(b.nextTriggerAt || b.dueAt).getTime());
-
-  sorted.forEach((item) => {
-    const ruleType = item.rule?.type || 'one-time';
-    const isEditing = item.id === editingReminderId;
-
-    const row = document.createElement('div');
-    row.className = 'reminder-item' + (item.status === 'done' ? ' done' : '') + (isEditing ? ' editing' : '');
-
-    if (isEditing) {
-      const localTime = isoToLocalInput(item.nextTriggerAt || item.dueAt);
-      row.innerHTML = `
-        <div class="reminder-edit-form">
-          <input type="text" class="reminder-edit-title" value="${item.title}" maxlength="60">
-          <input type="datetime-local" class="reminder-edit-time" value="${localTime}">
-          <select class="reminder-edit-rule">
-            <option value="one-time"${ruleType === 'one-time' ? ' selected' : ''}>仅一次</option>
-            <option value="daily"${ruleType === 'daily' ? ' selected' : ''}>每天</option>
-            <option value="weekly"${ruleType === 'weekly' ? ' selected' : ''}>每周</option>
-            <option value="workday"${ruleType === 'workday' ? ' selected' : ''}>工作日</option>
-          </select>
-        </div>
-        <div class="reminder-item-actions">
-          <button class="reminder-save-btn" data-id="${item.id}">保存</button>
-          <button class="reminder-cancel-btn" data-id="${item.id}">取消</button>
-        </div>
-      `;
-    } else {
-      const triggerTs = new Date(item.nextTriggerAt || item.dueAt).getTime();
-      row.innerHTML = `
-        <div class="reminder-item-main">
-          <div class="reminder-item-title">${item.title}</div>
-          <div class="reminder-item-meta">${formatReminderTime(item.nextTriggerAt || item.dueAt)} · ${formatReminderRule(ruleType)}</div>
-          ${item.status !== 'done' ? `<div class="reminder-countdown" data-trigger-ts="${triggerTs}"></div>` : ''}
-        </div>
-        <div class="reminder-item-actions">
-          <button class="reminder-edit-btn" data-id="${item.id}">编辑</button>
-          <button class="reminder-done-btn" data-id="${item.id}">完成</button>
-          <button class="reminder-delete-btn" data-id="${item.id}">删除</button>
-        </div>
-      `;
-    }
-    reminderListEl.appendChild(row);
-  });
-
-  reminderListEl.querySelectorAll('.reminder-edit-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      editingReminderId = btn.dataset.id;
-      stopCountdown();
-      renderReminderList();
-    });
-  });
-
-  reminderListEl.querySelectorAll('.reminder-save-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const item = reminderItems.find(x => x.id === id);
-      if (!item) return;
-      const row = btn.closest('.reminder-item');
-      const title = row.querySelector('.reminder-edit-title').value.trim();
-      const timeRaw = row.querySelector('.reminder-edit-time').value;
-      const ruleVal = row.querySelector('.reminder-edit-rule').value;
-      if (!title || !timeRaw) return;
-      const dueAt = new Date(timeRaw).toISOString();
-      item.title = title;
-      item.dueAt = dueAt;
-      item.nextTriggerAt = dueAt;
-      item.rule = { type: ['one-time', 'daily', 'weekly', 'workday'].includes(ruleVal) ? ruleVal : 'one-time' };
-      item.status = 'pending';
-      item.lastNotifiedAt = 0;
-      editingReminderId = null;
-      saveReminderItems();
-      renderReminderList();
-    });
-  });
-
-  reminderListEl.querySelectorAll('.reminder-cancel-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      editingReminderId = null;
-      renderReminderList();
-    });
-  });
-
-  reminderListEl.querySelectorAll('.reminder-done-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const item = reminderItems.find(x => x.id === id);
-      if (!item) return;
-      item.status = 'done';
-      saveReminderItems();
-      renderReminderList();
-    });
-  });
-
-  reminderListEl.querySelectorAll('.reminder-delete-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      reminderItems = reminderItems.filter(x => x.id !== id);
-      saveReminderItems();
-      renderReminderList();
-    });
-  });
-
-  if (isReminderOpen) startCountdown();
-}
-
-function updateReminderCountdowns() {
-  if (!reminderListEl) return;
-  const now = Date.now();
-  reminderListEl.querySelectorAll('.reminder-countdown').forEach((el) => {
-    const ts = Number(el.dataset.triggerTs);
-    if (!ts || Number.isNaN(ts)) { el.textContent = ''; return; }
-    const remaining = ts - now;
-    el.textContent = '⏳ ' + formatCountdown(remaining);
-    el.classList.toggle('countdown-urgent', remaining > 0 && remaining <= 60000);
-  });
-}
-
-function startCountdown() {
-  stopCountdown();
-  updateReminderCountdowns();
-  countdownInterval = setInterval(updateReminderCountdowns, 1000);
-}
-
-function stopCountdown() {
-  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
-}
-
-function addManualReminder() {
-  const title = reminderAddTitle.value.trim();
-  const dueRaw = reminderAddTime.value;
-  const dueAt = dueRaw ? new Date(dueRaw).toISOString() : '';
-  const selectedRuleType = ['one-time', 'daily', 'weekly', 'workday'].includes(reminderRuleType?.value) ? reminderRuleType.value : 'one-time';
-  if (!title || !dueAt) return;
-  reminderItems.push({
-    id: Date.now().toString() + Math.random().toString(16).slice(2, 8),
-    title,
-    dueAt,
-    source: 'manual',
-    rule: { type: selectedRuleType },
-    nextTriggerAt: dueAt,
-    status: 'pending',
-    lastNotifiedAt: 0
-  });
-  saveReminderItems();
-  renderReminderList();
-  reminderAddTitle.value = '';
-}
-
-let currentAlertItem = null;
-
-function triggerReminderAlert(item) {
-  showSpeech(`提醒：${item.title}`, 0, true);
-  currentAlertItem = item;
-  snoozeBar.classList.remove('hidden');
-  setMouseCapture(true);
-  reportRobotBounds();
-  setTimeout(() => {
-    speechBubble.classList.add('reminder-alert');
-    setTimeout(() => speechBubble.classList.remove('reminder-alert'), 3600);
-  }, 300);
-
-  petEl.classList.remove('idle');
-  petEl.classList.add('bounce');
-  petEl.addEventListener('animationend', function onBounceEnd() {
-    petEl.removeEventListener('animationend', onBounceEnd);
-    petEl.classList.remove('bounce');
-    setTimeout(() => {
-      petEl.classList.add('bounce');
-      petEl.addEventListener('animationend', function onBounce2() {
-        petEl.removeEventListener('animationend', onBounce2);
-        petEl.classList.remove('bounce');
-        petEl.classList.add('idle');
-      });
-    }, 150);
-  });
-
-  petEl.classList.add('attention-wiggle');
-  setTimeout(() => petEl.classList.remove('attention-wiggle'), 1600);
-}
-
-function checkDueReminders() {
-  const now = Date.now();
-  let dirty = false;
-  for (const item of reminderItems) {
-    if (item.status === 'done') continue;
-    const triggerTs = new Date(item.nextTriggerAt || item.dueAt).getTime();
-    if (Number.isNaN(triggerTs) || now < triggerTs) continue;
-    const last = Number(item.lastNotifiedAt || 0);
-    if (now - last < 5 * 60 * 1000) continue;
-    item.lastNotifiedAt = now;
-    triggerReminderAlert(item);
-    item.nextTriggerAt = computeNextTriggerAt(item, triggerTs);
-    if (!item.nextTriggerAt) item.status = 'done';
-    dirty = true;
-  }
-  if (dirty) {
-    saveReminderItems();
-    renderReminderList();
-  }
-}
+reminderController = window.RobotReminder.createReminderController({
+  elements: {
+    reminderCenter,
+    reminderCenterClose,
+    reminderAddTitle,
+    reminderAddTime,
+    reminderRuleType,
+    reminderAddBtn,
+    reminderListEl,
+    speechBubble,
+    snoozeBar,
+    snoozeSelect,
+    snoozeBtn,
+    petEl
+  },
+  dom: window.RobotDOM,
+  showSpeech,
+  setMouseCapture,
+  reportRobotBounds,
+  updateMouseCapture,
+  stopIdleAnimations,
+  resumeIdleAnimationsIfAllowed,
+  clearSpeechTimeout: () => {
+    clearTimeout(speechTimeout);
+  },
+  setReminderOpen: (open) => {
+    isReminderOpen = open;
+  },
+  isReminderOpen: () => isReminderOpen
+});
 
 function openReminderCenter() {
-  isReminderOpen = true;
-  stopIdleAnimations();
-  reminderCenter.classList.remove('hidden');
-  setMouseCapture(true);
-  renderReminderList();
-  startCountdown();
+  reminderController.openReminderCenter();
 }
 
 function closeReminderCenter() {
-  isReminderOpen = false;
-  stopCountdown();
-  reminderCenter.classList.add('hidden');
-  resumeIdleAnimationsIfAllowed();
-  updateMouseCapture();
+  reminderController.closeReminderCenter();
 }
 
 // --- Chat ---
+chatController = window.RobotChat.createChatController({
+  elements: {
+    chatPanel,
+    chatMessages,
+    chatInput,
+    chatSend,
+    chatClose
+  },
+  appendTextElement,
+  stopIdleAnimations,
+  resumeIdleAnimationsIfAllowed,
+  setMouseCapture,
+  updateMouseCapture,
+  setChatOpen: (open) => {
+    isChatOpen = open;
+  },
+  isChatOpen: () => isChatOpen,
+  isThinking: () => isThinking,
+  setThinking: (thinking) => {
+    isThinking = thinking;
+  },
+  render,
+  showSpeech,
+  getSettings,
+  openSettings,
+  getSystemPrompt
+});
+
 function openChat() {
-  isChatOpen = true;
-  stopIdleAnimations();
-  chatPanel.classList.remove('hidden');
-  setMouseCapture(true);
-  initSession();
-  renderSessionBar();
-  renderChatMessages();
-  chatInput.focus();
+  return chatController.openChat();
 }
 
 function closeChat() {
-  saveCurrentSession();
-  isChatOpen = false;
-  chatPanel.classList.add('hidden');
-  resumeIdleAnimationsIfAllowed();
-  updateMouseCapture();
+  return chatController.closeChat();
 }
 
-function renderChatMessages() {
-  chatMessages.innerHTML = '';
-  chatMessagesList.forEach((msg) => {
-    const div = document.createElement('div');
-    div.className = 'chat-message ' + (msg.role === 'user' ? 'user' : 'pet');
-    div.textContent = msg.content;
-
-    chatMessages.appendChild(div);
-  });
-
-  if (isThinking) {
-    const div = document.createElement('div');
-    div.className = 'chat-message pet thinking-msg';
-    div.textContent = '思考中...';
-    chatMessages.appendChild(div);
-  }
-
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function renderSessionBar() {
-  const bar = document.getElementById('chat-session-bar');
-  if (!bar) return;
-  const sessions = loadSessions();
-  const date = currentSessionId ? new Date(currentSessionId).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-  const msgCount = chatMessagesList.length;
-
-  bar.innerHTML = '';
-
-  const info = document.createElement('span');
-  info.className = 'session-info';
-  info.textContent = msgCount > 0 ? `${date} · ${Math.floor(msgCount / 2)}条` : '新对话';
-  bar.appendChild(info);
-
-  const actions = document.createElement('div');
-  actions.className = 'session-actions';
-
-  if (sessions.length > 0) {
-    const histBtn = document.createElement('button');
-    histBtn.className = 'session-btn';
-    histBtn.title = '历史对话';
-    histBtn.textContent = '历史';
-    histBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleSessionList(bar, sessions);
-    });
-    actions.appendChild(histBtn);
-  }
-
-  const newBtn = document.createElement('button');
-  newBtn.className = 'session-btn session-btn-new';
-  newBtn.title = '新建对话';
-  newBtn.textContent = '+ 新建';
-  newBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closeSessionList();
-    startNewSession();
-    renderSessionBar();
-    renderChatMessages();
-    chatInput.focus();
-  });
-  actions.appendChild(newBtn);
-  bar.appendChild(actions);
-}
-
-function deleteSession(id) {
-  let sessions = loadSessions();
-  sessions = sessions.filter(s => s.id !== id);
-  saveSessions(sessions);
-
-  if (currentSessionId === id) {
-    if (sessions.length > 0) {
-      switchToSession(sessions[0].id);
-    } else {
-      startNewSession();
-      chatMessagesList = [];
-    }
-    renderChatMessages();
-  }
-
-  renderSessionBar();
-  const bar = document.getElementById('chat-session-bar');
-  if (sessions.length > 0) {
-    toggleSessionList(bar, sessions);
-  }
-}
-
-function toggleSessionList(bar, sessions) {
-  const existing = document.getElementById('session-list-dropdown');
-  if (existing) { existing.remove(); return; }
-
-  const dropdown = document.createElement('div');
-  dropdown.id = 'session-list-dropdown';
-
-  sessions.forEach(s => {
-    const item = document.createElement('div');
-    item.className = 'session-list-item' + (s.id === currentSessionId ? ' active' : '');
-
-    const info = document.createElement('div');
-    info.className = 'session-item-info';
-    const d = new Date(s.id).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    info.innerHTML = `<span class="session-item-date">${d}</span><span class="session-item-preview">${s.preview || '空对话'}</span>`;
-    info.addEventListener('click', () => {
-      switchToSession(s.id);
-      closeSessionList();
-      renderSessionBar();
-      renderChatMessages();
-    });
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'session-item-delete';
-    delBtn.title = '删除';
-    delBtn.textContent = '✕';
-    delBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteSession(s.id);
-    });
-
-    item.appendChild(info);
-    item.appendChild(delBtn);
-    dropdown.appendChild(item);
-  });
-
-  bar.parentElement.insertBefore(dropdown, bar.nextSibling);
-
-  const onOutside = (e) => {
-    if (!dropdown.contains(e.target) && e.target.closest('#chat-session-bar') === null) {
-      closeSessionList();
-      document.removeEventListener('click', onOutside);
-    }
-  };
-  setTimeout(() => document.addEventListener('click', onOutside), 0);
-}
-
-function closeSessionList() {
-  const el = document.getElementById('session-list-dropdown');
-  if (el) el.remove();
-}
-
-async function sendMessage() {
-  const text = chatInput.value.trim();
-  if (!text || isThinking) return;
-
-  const settings = getSettings();
-  if (!settings || !settings.baseUrl || !settings.model || !settings.apiKey) {
-    openSettings();
-    return;
-  }
-
-  chatInput.value = '';
-  chatMessagesList.push({ role: 'user', content: text });
-  renderChatMessages();
-
-  isThinking = true;
-  render();
-
-  try {
-    const messages = [
-      { role: 'system', content: getSystemPrompt() },
-      ...chatMessagesList.slice(-10)
-    ];
-
-    const result = await window.electronAPI.chat({
-      baseUrl: settings.baseUrl,
-      model: settings.model,
-      apiKey: settings.apiKey,
-      provider: settings.provider,
-      messages
-    });
-
-    if (result.success) {
-      chatMessagesList.push({ role: 'assistant', content: result.content });
-      renderChatMessages();
-      if (!isChatOpen) showSpeech(result.content, 4000);
-    } else {
-      if (settings.autoWebFallback) {
-        const searchingMsg = '主回答失败，正在联网搜索并总结...';
-        const searchingIndex = chatMessagesList.length;
-        chatMessagesList.push({ role: 'assistant', content: searchingMsg });
-        renderChatMessages();
-
-        const searchResult = await window.electronAPI.webSearch({
-          query: text,
-          topK: settings.webSearchTopK
-        });
-
-        if (searchResult.success) {
-          const evidence = (searchResult.results || []).map((item, index) =>
-            `${index + 1}. ${item.title}\n${item.snippet}\n${item.url}`
-          ).join('\n\n');
-          const summarizeResult = await window.electronAPI.chat({
-            baseUrl: settings.baseUrl,
-            model: settings.model,
-            apiKey: settings.apiKey,
-            provider: settings.provider,
-            messages: [
-              { role: 'system', content: '你是检索总结助手。请根据证据回答问题，并在结尾附上来源链接。' },
-              { role: 'user', content: `用户问题：${text}\n\n证据：\n${evidence}\n\n请给出简洁结论并列出来源链接。` }
-            ]
-          });
-
-          if (summarizeResult.success) {
-            chatMessagesList[searchingIndex] = { role: 'assistant', content: summarizeResult.content };
-            renderChatMessages();
-            if (!isChatOpen) showSpeech(summarizeResult.content, 4000);
-          } else {
-            const combinedError = `出错了：${result.error}；联网搜索成功，但总结失败：${summarizeResult.error}`;
-            chatMessagesList[searchingIndex] = { role: 'assistant', content: combinedError };
-            renderChatMessages();
-            if (!isChatOpen) showSpeech(combinedError, 3000);
-          }
-        } else {
-          const combinedError = `出错了：${result.error}；联网搜索失败：${searchResult.error}`;
-          chatMessagesList[searchingIndex] = { role: 'assistant', content: combinedError };
-          renderChatMessages();
-          if (!isChatOpen) showSpeech(combinedError, 3000);
-        }
-      } else {
-        const errMsg = '出错了：' + result.error;
-        chatMessagesList.push({ role: 'assistant', content: errMsg });
-        renderChatMessages();
-        if (!isChatOpen) showSpeech(errMsg, 3000);
-      }
-    }
-  } finally {
-    isThinking = false;
-    saveCurrentSession();
-    renderSessionBar();
-    render();
-  }
+function sendMessage() {
+  return chatController.sendMessage();
 }
 
 // --- Tab switching helper ---
@@ -1311,7 +522,14 @@ function switchTab(panelEl, tabName) {
 
 // --- System Monitor ---
 async function refreshSystemStats() {
-  const stats = await window.electronAPI.getSystemStats();
+  if (systemStatsInFlight) return;
+  systemStatsInFlight = true;
+  let stats;
+  try {
+    stats = await window.electronAPI.getSystemStats();
+  } finally {
+    systemStatsInFlight = false;
+  }
   if (!stats || stats.error) return;
 
   document.getElementById('stat-cpu').textContent = stats.cpu;
@@ -1327,23 +545,6 @@ async function refreshSystemStats() {
 
   renderProcessList('proc-cpu-list', stats.topByCpu);
   renderProcessList('proc-mem-list', stats.topByMem);
-}
-
-function renderProcessList(listId, processes) {
-  const el = document.getElementById(listId);
-  if (!el || !Array.isArray(processes)) return;
-  el.innerHTML = '';
-  processes.forEach(p => {
-    const row = document.createElement('div');
-    row.className = 'proc-row';
-    row.innerHTML = `
-      <span class="proc-col-cmd" title="${p.cmd} [${p.pid}]">${p.cmd}</span>
-      <span class="proc-col-cpu">${p.cpu}</span>
-      <span class="proc-col-mem">${p.mem}</span>
-      <span class="proc-col-pid">${p.pid}</span>
-    `;
-    el.appendChild(row);
-  });
 }
 
 function openSystemMonitor() {
@@ -1388,92 +589,30 @@ systemMonitor.querySelectorAll('.monitor-tab').forEach(btn => {
 
 // --- Port Monitor ---
 async function refreshPortStats() {
-  const data = await window.electronAPI.getPortStats();
-  if (!data || data.error) return;
-  renderWatchedPorts(data);
-  renderAllPorts(data);
-}
-
-function renderWatchedPorts(data) {
-  const list = document.getElementById('port-watched-list');
-  if (!list) return;
-  list.innerHTML = '';
-
-  for (const port of data.ports) {
-    const processes = data.portMap[port] || [];
-    const item = document.createElement('div');
-    item.className = 'port-item';
-
-    const badge = processes.length > 0
-      ? `<span class="port-badge occupied">占用 ${processes.length}</span>`
-      : `<span class="port-badge free">空闲</span>`;
-
-    item.innerHTML = `
-      <div class="port-item-header">
-        <span class="port-item-number">:${port}</span>
-        <div class="port-item-actions">
-          ${badge}
-          <button class="port-remove-btn" data-port="${port}" title="移除">✕</button>
-        </div>
-      </div>
-    `;
-
-    processes.forEach(proc => {
-      const row = document.createElement('div');
-      row.className = 'port-process-row';
-      row.innerHTML = `
-        <span class="port-proc-cmd" title="${proc.command}">${proc.command}</span>
-        <span class="port-proc-addr">${proc.addr}</span>
-        <span class="port-proc-pid">PID ${proc.pid}</span>
-        <button class="port-kill-btn" data-pid="${proc.pid}" data-cmd="${proc.command}">Kill</button>
-      `;
-      item.appendChild(row);
-    });
-
-    list.appendChild(item);
+  if (portStatsInFlight) return;
+  portStatsInFlight = true;
+  let data;
+  try {
+    data = await window.electronAPI.getPortStats();
+  } finally {
+    portStatsInFlight = false;
   }
-
-  list.querySelectorAll('.port-remove-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const port = parseInt(btn.dataset.port, 10);
+  if (!data || data.error) return;
+  renderWatchedPorts(data, {
+    removePort: async (port) => {
       await window.electronAPI.removePort(port);
       refreshPortStats();
-    });
-  });
-
-  list.querySelectorAll('.port-kill-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const pid = parseInt(btn.dataset.pid, 10);
+    },
+    killProcess: async (pid) => {
       const result = await window.electronAPI.killProcess(pid);
       if (!result.success) {
         alert(`Kill 失败 (PID ${pid}): ${result.error}`);
         return;
       }
       setTimeout(refreshPortStats, 800);
-    });
+    }
   });
-}
-
-function renderAllPorts(data) {
-  const summary = document.getElementById('all-ports-summary');
-  const list = document.getElementById('all-ports-list');
-  if (!summary || !list) return;
-
-  summary.textContent = `共 ${data.allCount} 个监听端口，显示前 ${data.allListening.length} 个`;
-  list.innerHTML = '';
-
-  data.allListening.forEach(p => {
-    const row = document.createElement('div');
-    row.className = 'all-port-row';
-    row.innerHTML = `
-      <span class="all-port-num">${p.port}</span>
-      <span class="all-port-cmd" title="${p.command}">${p.command}</span>
-      <span class="all-port-addr">${p.addr}</span>
-      <span class="all-port-user">${p.user}</span>
-      <span class="all-port-pid">${p.pid}</span>
-    `;
-    list.appendChild(row);
-  });
+  renderAllPorts(data);
 }
 
 function openPortMonitor() {
@@ -1642,7 +781,10 @@ function updateMouseCapture() {
   setMouseCapture(shouldCapture);
 }
 
-document.addEventListener('mousemove', (e) => {
+let pendingMouseMove = null;
+let mouseMoveFrame = null;
+
+function handleRobotMouseMove(clientX, clientY) {
   if (isDragging) {
     resetPetPerspective();
     return;
@@ -1653,18 +795,30 @@ document.addEventListener('mousemove', (e) => {
   }
   const rect = container.getBoundingClientRect();
   const pad = 20;
-  const overContainer = e.clientX >= rect.left - pad && e.clientX <= rect.right + pad && e.clientY >= rect.top - pad && e.clientY <= rect.bottom + pad;
-  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const overContainer = clientX >= rect.left - pad && clientX <= rect.right + pad && clientY >= rect.top - pad && clientY <= rect.bottom + pad;
+  const el = document.elementFromPoint(clientX, clientY);
   const overChatPanel = !!(el && el.closest('#chat-panel'));
   const overReminderCenter = !!(el && el.closest('#reminder-center'));
   // Use bounding rect for speech bubble since it overflows the container (top: -50px)
   const sbRect = speechBubble.getBoundingClientRect();
   const overSpeechBubble = !speechBubble.classList.contains('hidden') &&
-    e.clientX >= sbRect.left && e.clientX <= sbRect.right &&
-    e.clientY >= sbRect.top && e.clientY <= sbRect.bottom;
-  if (overContainer) updatePetPerspective(e.clientX, e.clientY);
+    clientX >= sbRect.left && clientX <= sbRect.right &&
+    clientY >= sbRect.top && clientY <= sbRect.bottom;
+  if (overContainer) updatePetPerspective(clientX, clientY);
   else resetPetPerspective();
   setMouseCapture(overContainer || overChatPanel || overReminderCenter || overSpeechBubble);
+}
+
+document.addEventListener('mousemove', (e) => {
+  pendingMouseMove = { clientX: e.clientX, clientY: e.clientY };
+  if (mouseMoveFrame) return;
+  mouseMoveFrame = requestAnimationFrame(() => {
+    mouseMoveFrame = null;
+    if (!pendingMouseMove) return;
+    const { clientX, clientY } = pendingMouseMove;
+    pendingMouseMove = null;
+    handleRobotMouseMove(clientX, clientY);
+  });
 });
 
 // --- Context menu (native) ---
@@ -1721,12 +875,7 @@ systemMonitor.querySelector('.monitor-backdrop').addEventListener('click', close
 portMonitorClose.addEventListener('click', closePortMonitor);
 portMonitor.querySelector('.monitor-backdrop').addEventListener('click', closePortMonitor);
 
-// --- Chat events ---
-chatSend.addEventListener('click', sendMessage);
-chatClose.addEventListener('click', closeChat);
-chatInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') sendMessage();
-});
+chatController.bindChatEvents();
 
 // --- Global key events ---
 window.addEventListener('keydown', (e) => {
@@ -1741,63 +890,10 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// --- Settings events ---
-settingSave.addEventListener('click', saveSettings);
-settingCancel.addEventListener('click', closeSettings);
-settingTranslateModelMode.addEventListener('change', updateTranslateSettingsVisibility);
-settingsModal.querySelector('.settings-backdrop').addEventListener('click', closeSettings);
-reminderCenterClose.addEventListener('click', closeReminderCenter);
-reminderCenter.querySelector('.monitor-backdrop').addEventListener('click', closeReminderCenter);
-reminderAddBtn.addEventListener('click', addManualReminder);
-reminderAddTime.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') addManualReminder();
-});
-speechBubble.addEventListener('mousedown', (e) => {
-  e.stopPropagation();
-});
-speechBubble.addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (!speechBubble.classList.contains('clickable') && !speechBubble.classList.contains('news')) return;
-  speechBubble.classList.add('hidden');
-  speechBubble.classList.remove('clickable', 'news');
-  snoozeBar.classList.add('hidden');
-  currentAlertItem = null;
-  reportRobotBounds();
-  clearTimeout(speechTimeout);
-  updateMouseCapture();
-});
+settingsController.bindSettingsEvents();
 
-function doSnooze() {
-  const mins = Number.parseInt(snoozeSelect.value, 10);
-  const validMins = Number.isFinite(mins) && mins > 0 ? mins : 5;
-  if (!currentAlertItem) {
-    snoozeBar.classList.add('hidden');
-    reportRobotBounds();
-    updateMouseCapture();
-    return;
-  }
-  currentAlertItem.lastNotifiedAt = Date.now();
-  currentAlertItem.nextTriggerAt = new Date(Date.now() + validMins * 60 * 1000).toISOString();
-  currentAlertItem.status = 'pending';
-  saveReminderItems();
-  speechBubble.classList.add('hidden');
-  speechBubble.classList.remove('clickable', 'news', 'reminder-alert');
-  snoozeBar.classList.add('hidden');
-  currentAlertItem = null;
-  reportRobotBounds();
-  updateMouseCapture();
-}
+reminderController.bindReminderEvents();
 
-snoozeBar.addEventListener('mousedown', (e) => {
-  e.stopPropagation();
-});
-snoozeBar.addEventListener('click', (e) => {
-  e.stopPropagation();
-});
-snoozeBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  doSnooze();
-});
 function containsChinese(text) {
   return /[\u4e00-\u9fff]/.test(text || '');
 }
@@ -1908,11 +1004,7 @@ async function handleTranslateSelection(text) {
 }
 
 function appendTranslateMessage(content) {
-  const div = document.createElement('div');
-  div.className = 'chat-message translate-msg';
-  div.textContent = content;
-  chatMessages.appendChild(div);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  chatController.appendTranslateMessage(content);
 }
 
 window.electronAPI.onTranslateSelection(handleTranslateSelection);
@@ -1948,9 +1040,9 @@ const DOUBLE_CLICK_LINES = [
     const stats = await window.electronAPI.getSystemStats().catch(() => null);
     if (!stats || stats.error) return '（竖起天线）系统一切正常！嗯……大概吧。';
     const cpu = parseInt(stats.cpu);
-    if (cpu > 80) return `（冒烟）CPU ${stats.cpu}%！！主人快关几个程序吧，我要热化了！🔥`;
-    if (cpu > 50) return `（擦汗）CPU ${stats.cpu}%，还行还行，我还能撑住！`;
-    return `（得意）CPU 才 ${stats.cpu}%，多亏我帮你监控着呢~`;
+    if (cpu > 80) return `（冒烟）CPU ${stats.cpu}！！主人快关几个程序吧，我要热化了！🔥`;
+    if (cpu > 50) return `（擦汗）CPU ${stats.cpu}，还行还行，我还能撑住！`;
+    return `（得意）CPU 才 ${stats.cpu}，多亏我帮你监控着呢~`;
   },
   () => {
     const moods = ['超开心', '有点小激动', '感动得不行', '幸福到冒泡', '开心到原地起飞'];
@@ -2243,12 +1335,13 @@ function testIdleAnimation(kind) {
 }
 
 // --- Init ---
-reminderItems = loadReminderItems();
-checkDueReminders();
-setInterval(checkDueReminders, 30000);
+reminderController.init();
 container.style.left = (window.innerWidth * 0.90) + 'px';
 render();
 initRobot3D();
 reportRobotBounds();
-updateModelIndicator();
+initializeProtectedSecrets().catch((error) => {
+  console.error('[settings] failed to protect stored API keys:', error);
+  updateModelIndicator();
+});
 startIdleAnimations();

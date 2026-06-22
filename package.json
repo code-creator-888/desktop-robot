@@ -2,23 +2,56 @@
   "name": "desktop-robot",
   "version": "1.0.0",
   "description": "桌面机器人",
+  "author": "Desktop Robot",
+  "license": "MIT",
   "main": "main.js",
   "bin": {
     "robot-start": "./robot-start"
   },
   "scripts": {
     "start": "node scripts/start-electron.js",
-    "test": "node --test"
+    "test": "node --test",
+    "pack": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir --publish never --config.mac.identity=null",
+    "dist": "electron-builder"
   },
   "devDependencies": {
-    "electron": "^33.4.11"
+    "electron": "^42.4.1",
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
     "three": "^0.184.0",
     "uiohook-napi": "^1.5.5"
   },
   "allowScripts": {
-    "electron@33.4.11": true,
+    "electron@42.4.1": true,
+    "electron-winstaller@5.4.0": true,
     "uiohook-napi@1.5.5": true
+  },
+  "build": {
+    "appId": "com.desktoprobot.app",
+    "productName": "Desktop Robot",
+    "files": [
+      "assets/**",
+      "lib/**",
+      "scripts/**",
+      "index.html",
+      "main.js",
+      "preload.js",
+      "renderer-dom.js",
+      "renderer-monitor.js",
+      "renderer-settings.js",
+      "renderer-chat.js",
+      "renderer-reminder.js",
+      "renderer.js",
+      "style.css",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    }
   }
 }

@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const htmlPath = path.join(__dirname, '..', 'index.html');
 const rendererPath = path.join(__dirname, '..', 'renderer.js');
+const rendererSettingsPath = path.join(__dirname, '..', 'renderer-settings.js');
 const cssPath = path.join(__dirname, '..', 'style.css');
 
 test('settings panel includes translate model mode and custom config inputs', () => {
@@ -17,11 +18,12 @@ test('settings panel includes translate model mode and custom config inputs', ()
 });
 
 test('renderer supports translation model mode: same as chat or custom openai-compatible', () => {
-  const source = fs.readFileSync(rendererPath, 'utf8');
-  assert.match(source, /function getTranslateModelConfig\(\)/);
-  assert.match(source, /const mode = settings\.translateModelMode === 'custom' \? 'custom' : 'same'/);
-  assert.match(source, /provider:\s*'openai'/);
-  assert.match(source, /const translateConfig = getTranslateModelConfig\(\)/);
+  const renderer = fs.readFileSync(rendererPath, 'utf8');
+  const settings = fs.readFileSync(rendererSettingsPath, 'utf8');
+  assert.match(settings, /function getTranslateModelConfig\(\)/);
+  assert.match(settings, /const mode = settings\.translateModelMode === 'custom' \? 'custom' : 'same'/);
+  assert.match(settings, /provider:\s*'openai'/);
+  assert.match(renderer, /const translateConfig = getTranslateModelConfig\(\)/);
 });
 
 test('renderer enforces compact output format for english and chinese translation', () => {
