@@ -178,6 +178,14 @@ function showSpeech(text, duration, persistent, type) {
   }, duration);
 }
 
+speechBubble.addEventListener('click', () => {
+  if (speechBubble.classList.contains('hidden')) return;
+  clearTimeout(speechTimeout);
+  speechBubble.classList.add('hidden');
+  speechBubble.classList.remove('clickable', 'news');
+  updateMouseCapture();
+});
+
 function resizeRobot3D() {
   if (!robot3D) return;
   const width = petStage.clientWidth || petEl.width || 64;
