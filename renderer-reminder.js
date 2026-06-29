@@ -358,7 +358,7 @@
     }
 
     function handleSpeechBubbleClick() {
-      if (!speechBubble.classList.contains('clickable') && !speechBubble.classList.contains('news')) return;
+      if (!speechBubble.classList.contains('clickable') && !speechBubble.classList.contains('news') && !currentAlertItem) return;
       speechBubble.classList.add('hidden');
       speechBubble.classList.remove('clickable', 'news');
       snoozeBar.classList.add('hidden');
