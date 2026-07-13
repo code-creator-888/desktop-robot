@@ -1416,6 +1416,155 @@ html, body {
   padding: 6px 8px;
 }
 
+#todo-list {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+#todo-list.hidden {
+  display: none;
+}
+
+.todo-add-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px 0 8px;
+}
+
+#todo-add-title {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+#todo-add-btn {
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  background: #007aff;
+  color: white;
+  padding: 8px 12px;
+}
+
+.todo-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 200px;
+  max-height: 46vh;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.todo-item.done {
+  opacity: 0.55;
+}
+
+.todo-item-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.todo-item-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.todo-delete-btn {
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  background: #ffecee;
+  color: #c22b39;
+  padding: 6px 8px;
+}
+
+.todo-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.todo-item-title {
+  font-size: 13px;
+  color: #1d1d1f;
+}
+
+.todo-item.done .todo-item-title {
+  text-decoration: line-through;
+  color: #9a9a9f;
+}
+
+.todo-item-due {
+  font-size: 11px;
+  color: #7d7d83;
+}
+
+.todo-countdown {
+  font-size: 12px;
+  color: #007aff;
+  font-variant-numeric: tabular-nums;
+}
+
+.todo-countdown.countdown-urgent {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.todo-countdown.countdown-overdue {
+  color: #c22b39;
+  font-weight: 600;
+}
+
+.todo-due-edit-btn,
+.todo-due-save-btn,
+.todo-due-clear-btn {
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 8px;
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+
+.todo-due-clear-btn {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.todo-due-edit-input {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
 .stat-row {
   display: flex;
   justify-content: space-between;

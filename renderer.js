@@ -67,6 +67,12 @@ const reminderAddTime = document.getElementById('reminder-add-time');
 const reminderRuleType = document.getElementById('reminder-rule-type');
 const reminderAddBtn = document.getElementById('reminder-add-btn');
 const reminderListEl = document.getElementById('reminder-list');
+const todoList = document.getElementById('todo-list');
+const todoListClose = document.getElementById('todo-list-close');
+const todoAddTitle = document.getElementById('todo-add-title');
+const todoAddDue = document.getElementById('todo-add-due');
+const todoAddBtn = document.getElementById('todo-add-btn');
+const todoItemsEl = document.getElementById('todo-items');
 const { appendTextElement, appendButton, appendReminderRuleOptions } = window.RobotDOM;
 const { renderProcessList, renderWatchedPorts, renderAllPorts } = window.RobotMonitor;
 
@@ -81,6 +87,7 @@ let isSettingsOpen = false;
 let isMonitorOpen = false;
 let isThinking = false;
 let isReminderOpen = false;
+let isTodoOpen = false;
 let isDblClickAnimating = false;
 let systemMonitorInterval = null;
 let portMonitorInterval = null;
@@ -92,6 +99,7 @@ let robot3DResizeObserver = null;
 let robot3DWindowResizeHandler = null;
 let currentPetSrc = '';
 let reminderController = null;
+let todoController;
 let settingsController = null;
 let chatController = null;
 
@@ -477,6 +485,33 @@ function closeReminderCenter() {
   reminderController.closeReminderCenter();
 }
 
+todoController = window.RobotTodo.createTodoController({
+  elements: {
+    todoList,
+    todoListClose,
+    todoAddTitle,
+    todoAddDue,
+    todoAddBtn,
+    todoItemsEl
+  },
+  dom: window.RobotDOM,
+  setMouseCapture,
+  stopIdleAnimations,
+  resumeIdleAnimationsIfAllowed,
+  updateMouseCapture,
+  setTodoOpen: (open) => {
+    isTodoOpen = open;
+  }
+});
+
+function openTodoList() {
+  todoController.openTodoList();
+}
+
+function closeTodoList() {
+  todoController.closeTodoList();
+}
+
 // --- Chat ---
 chatController = window.RobotChat.createChatController({
   elements: {
@@ -782,6 +817,7 @@ function updateMouseCapture() {
     isSettingsOpen ||
     isMonitorOpen ||
     isReminderOpen ||
+    isTodoOpen ||
     isChatOpen ||
     isDblClickAnimating ||
     !snoozeBar.classList.contains('hidden') ||
@@ -797,7 +833,7 @@ function handleRobotMouseMove(clientX, clientY) {
     resetPetPerspective();
     return;
   }
-  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isChatOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || !speechBubble.classList.contains('hidden')) {
+  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isTodoOpen || isChatOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || !speechBubble.classList.contains('hidden')) {
     resetPetPerspective();
     return;
   }
@@ -862,6 +898,12 @@ window.electronAPI.onMenuAction((action) => {
     } else {
       openReminderCenter();
     }
+  } else if (action === 'todo-list') {
+    if (isTodoOpen) {
+      closeTodoList();
+    } else {
+      openTodoList();
+    }
   } else if (typeof action === 'string' && action.startsWith('switch-model:')) {
     const id = action.slice('switch-model:'.length);
     switchModel(id);
@@ -895,12 +937,16 @@ window.addEventListener('keydown', (e) => {
       if (!portMonitor.classList.contains('hidden')) closePortMonitor();
     }
     if (isReminderOpen) closeReminderCenter();
+    if (isTodoOpen) closeTodoList();
   }
 });
 
 settingsController.bindSettingsEvents();
 
 reminderController.bindReminderEvents();
+
+todoController.bindTodoEvents();
+todoController.init();
 
 function containsChinese(text) {
   return /[\u4e00-\u9fff]/.test(text || '');
@@ -1268,7 +1314,7 @@ let idleYawnTimer = null;
 
 function isUserInteracting() {
   return isDragging || isChatOpen || isSettingsOpen || isMonitorOpen ||
-    isReminderOpen || isDblClickAnimating || isThinking ||
+    isReminderOpen || isTodoOpen || isDblClickAnimating || isThinking ||
     !snoozeBar.classList.contains('hidden') ||
     !speechBubble.classList.contains('hidden');
 }

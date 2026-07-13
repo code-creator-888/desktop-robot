@@ -42,6 +42,7 @@
       "renderer-settings.js",
       "renderer-chat.js",
       "renderer-reminder.js",
+      "renderer-todo.js",
       "renderer.js",
       "style.css",
       "package.json"

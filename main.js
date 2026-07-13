@@ -153,6 +153,7 @@ async function buildRobotMenuAsync() {
     { label: '📊 系统监控', click: () => win && win.webContents.send('menu-action', 'system-monitor') },
     { label: '🔌 端口监控', click: () => win && win.webContents.send('menu-action', 'port-monitor') },
     { label: '⏰ 提醒中心', click: () => win && win.webContents.send('menu-action', 'reminder-center') },
+    { label: '✅ 待办清单', click: () => win && win.webContents.send('menu-action', 'todo-list') },
     { label: '⚙️ 设置', click: () => win && win.webContents.send('menu-action', 'settings') },
     { label: '🚪 退出', click: () => app.quit() }
   );
