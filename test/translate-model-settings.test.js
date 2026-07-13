@@ -10,6 +10,11 @@ const cssPath = path.join(__dirname, '..', 'style.css');
 
 test('settings panel includes translate model mode and custom config inputs', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
+  assert.match(html, />聊天模型</);
+  assert.match(html, /这里配置聊天与联网总结使用的主模型/);
+  assert.match(html, />翻译模型</);
+  assert.match(html, /只影响划词翻译，不影响聊天回复/);
+  assert.match(html, />通用设置</);
   assert.match(html, /id="setting-translate-model-mode"/);
   assert.match(html, /id="setting-translate-custom"/);
   assert.match(html, /id="setting-translate-baseurl"/);
@@ -50,4 +55,18 @@ test('speech bubble wraps only when text exceeds threshold', () => {
   assert.match(css, /#speech-bubble\.wrap[\s\S]*white-space:\s*normal/);
   assert.match(css, /#speech-bubble\.wrap[\s\S]*width:\s*min\(320px,\s*40vw\)/);
   assert.match(css, /#speech-bubble\.wrap[\s\S]*min-width:\s*180px/);
+});
+
+test('settings panel visually separates chat translate and general sections', () => {
+  const css = fs.readFileSync(cssPath, 'utf8');
+  assert.match(css, /\.settings-section \{/);
+  assert.match(css, /\.settings-section-header h4 \{/);
+  assert.match(css, /\.settings-section-header p \{/);
+  assert.match(css, /\.settings-subsection-title \{/);
+});
+
+test('settings panel scrolls when content exceeds viewport height', () => {
+  const css = fs.readFileSync(cssPath, 'utf8');
+  assert.match(css, /\.settings-card \{[\s\S]*max-height:\s*min\(82vh,\s*760px\);/);
+  assert.match(css, /\.settings-card \{[\s\S]*overflow-y:\s*auto;/);
 });

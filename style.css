@@ -856,6 +856,8 @@ html, body {
   border-radius: 16px;
   padding: 24px;
   width: 320px;
+  max-height: min(82vh, 760px);
+  overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
@@ -863,6 +865,37 @@ html, body {
   margin-bottom: 16px;
   font-size: 18px;
   text-align: center;
+}
+
+.settings-section {
+  border: 1px solid #ececf1;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fafbff;
+}
+
+.settings-section-header {
+  margin-bottom: 10px;
+}
+
+.settings-section-header h4 {
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: #1d1d1f;
+}
+
+.settings-section-header p {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #7a7a82;
+}
+
+.settings-subsection-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4f4f55;
 }
 
 .settings-card label {
@@ -1006,7 +1039,7 @@ html, body {
 .model-edit-divider {
   height: 1px;
   background: #eee;
-  margin: 8px 0;
+  margin: 8px 0 10px;
 }
 
 .model-edit-actions {

@@ -207,43 +207,62 @@
     <div class="settings-backdrop"></div>
     <div class="settings-card settings-card-wide">
       <h3>AI 设置</h3>
-      <label>模型列表</label>
-      <div id="model-list"></div>
-      <button id="model-add-btn" class="model-add-btn">+ 添加模型</button>
-      <label>翻译模型</label>
-      <select id="setting-translate-model-mode">
-        <option value="same">跟随聊天模型</option>
-        <option value="custom">自定义本地小模型（OpenAI 兼容）</option>
-      </select>
-      <div id="setting-translate-custom" class="hidden">
-        <label>翻译 API Base URL</label>
-        <input type="text" id="setting-translate-baseurl" placeholder="http://127.0.0.1:11434/v1">
-        <label>翻译模型 ID</label>
-        <input type="text" id="setting-translate-model" placeholder="如: qwen2.5:7b">
-        <label>翻译 API Key</label>
-        <input type="password" id="setting-translate-apikey" placeholder="本地服务可填任意非空值">
-      </div>
-      <div id="model-edit-form" class="hidden">
-        <div class="model-edit-divider"></div>
-        <label>显示名称</label>
-        <input type="text" id="edit-model-name" placeholder="如: GPT-4o">
-        <label>Provider</label>
-        <select id="edit-model-provider">
-          <option value="openai">OpenAI 兼容</option>
-          <option value="anthropic">Anthropic</option>
-        </select>
-        <label>模型 ID</label>
-        <input type="text" id="edit-model-id" placeholder="如: gpt-4o, claude-sonnet-4-20250514">
-        <label>API Base URL</label>
-        <input type="text" id="edit-model-baseurl" placeholder="https://api.openai.com/v1">
-        <label>API Key</label>
-        <input type="password" id="edit-model-apikey" placeholder="sk-...">
-        <div class="model-edit-actions">
-          <button id="edit-model-save">保存</button>
-          <button id="edit-model-cancel">取消</button>
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <h4>聊天模型</h4>
+          <p>这里配置聊天与联网总结使用的主模型。</p>
+        </div>
+        <label>可用模型</label>
+        <div id="model-list"></div>
+        <button id="model-add-btn" class="model-add-btn">+ 添加聊天模型</button>
+        <div id="model-edit-form" class="hidden">
+          <div class="model-edit-divider"></div>
+          <div class="settings-subsection-title">编辑聊天模型</div>
+          <label>显示名称</label>
+          <input type="text" id="edit-model-name" placeholder="如: GPT-4o">
+          <label>Provider</label>
+          <select id="edit-model-provider">
+            <option value="openai">OpenAI 兼容</option>
+            <option value="anthropic">Anthropic</option>
+          </select>
+          <label>模型 ID</label>
+          <input type="text" id="edit-model-id" placeholder="如: gpt-4o, claude-sonnet-4-20250514">
+          <label>API Base URL</label>
+          <input type="text" id="edit-model-baseurl" placeholder="https://api.openai.com/v1">
+          <label>API Key</label>
+          <input type="password" id="edit-model-apikey" placeholder="sk-...">
+          <div class="model-edit-actions">
+            <button id="edit-model-save">保存</button>
+            <button id="edit-model-cancel">取消</button>
+          </div>
         </div>
       </div>
+
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <h4>翻译模型</h4>
+          <p>只影响划词翻译，不影响聊天回复。</p>
+        </div>
+        <label>翻译来源</label>
+        <select id="setting-translate-model-mode">
+          <option value="same">跟随聊天模型</option>
+          <option value="custom">自定义本地小模型（OpenAI 兼容）</option>
+        </select>
+        <div id="setting-translate-custom" class="hidden">
+          <label>翻译 API Base URL</label>
+          <input type="text" id="setting-translate-baseurl" placeholder="http://127.0.0.1:11434/v1">
+          <label>翻译模型 ID</label>
+          <input type="text" id="setting-translate-model" placeholder="如: qwen2.5:7b">
+          <label>翻译 API Key</label>
+          <input type="password" id="setting-translate-apikey" placeholder="本地服务可填任意非空值">
+        </div>
+      </div>
+
       <div class="settings-divider"></div>
+      <div class="settings-section-header">
+        <h4>通用设置</h4>
+        <p>这些选项会影响机器人名称、提示词和联网回退行为。</p>
+      </div>
       <label>机器人名字</label>
       <input type="text" id="setting-pet-name" placeholder="小机（留空使用默认）">
       <label>系统提示词</label>
