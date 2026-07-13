@@ -1093,13 +1093,16 @@ function appendTranslateMessage(content) {
 window.electronAPI.onTranslateSelection(handleTranslateSelection);
 
 // --- Click interaction ---
+let hotNewsRotationIndex = 0;
+
 const SINGLE_CLICK_LINES = [
   async () => {
     try {
       const res = await window.electronAPI.getHotNews(30);
       if (!res.success || !res.headlines || res.headlines.length === 0) return '新闻获取失败，下次再试吧~';
-      const pick = res.headlines[Math.floor(Math.random() * res.headlines.length)];
-      const idx = res.headlines.indexOf(pick) + 1;
+      const idx = hotNewsRotationIndex % res.headlines.length;
+      const pick = res.headlines[idx];
+      hotNewsRotationIndex = (idx + 1) % res.headlines.length;
       return { text: `📰 ${pick}`, duration: 6000, type: 'news' };
     } catch { return '新闻获取失败，下次再试吧~'; }
   },

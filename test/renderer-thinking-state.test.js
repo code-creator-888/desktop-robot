@@ -51,6 +51,15 @@ test('sendMessage prefers web search first for time-sensitive questions', () => 
   assert.match(source, /月销量/);
 });
 
+test('single-click news rotates through fetched headlines instead of choosing randomly', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  assert.match(source, /let hotNewsRotationIndex = 0;/);
+  assert.match(source, /const idx = hotNewsRotationIndex % res\.headlines\.length;/);
+  assert.match(source, /const pick = res\.headlines\[idx\];/);
+  assert.match(source, /hotNewsRotationIndex = \(idx \+ 1\) % res\.headlines\.length;/);
+  assert.doesNotMatch(source, /Math\.random\(\) \* res\.headlines\.length/);
+});
+
 test('sendMessage intercepts embedded webSearch tool-call text instead of rendering it raw', () => {
   const source = fs.readFileSync(rendererChatPath, 'utf8');
   assert.match(source, /function extractEmbeddedWebSearchQuery\(content, fallbackQuery\)/);
