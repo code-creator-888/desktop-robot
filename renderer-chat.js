@@ -26,6 +26,86 @@
     let chatMessagesList = [];
     let currentSessionId = null;
 
+    function formatDirectSearchResults(question, results) {
+      const lines = [`我联网查到这些结果，可先直接参考：`, `问题：${question}`];
+      (results || []).forEach((item, index) => {
+        lines.push('');
+        lines.push(`${index + 1}. ${item.title}`);
+        if (item.snippet) lines.push(item.snippet);
+        lines.push(item.url);
+      });
+      return lines.join('\n');
+    }
+
+    function shouldPreferWebSearch(text) {
+      const normalized = String(text || '').trim().toLowerCase();
+      if (!normalized) return false;
+      return /(什么时候|何时|几点|今日|今天|最新|刚刚|目前|现在|近期|近况|上市|发布|发布日期|发售|开售|价格|多少钱|进展|动态|时间表|官网|新闻|销量|月销量)/.test(normalized);
+    }
+
+    function extractEmbeddedWebSearchQuery(content, fallbackQuery) {
+      const text = String(content || '');
+      if (!/functions\.webSearch/i.test(text)) return '';
+
+      const jsonMatch = text.match(/<tool_call_argument_begin>\s*(\{[\s\S]*?\})\s*<tool_call_end>/i);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          const query = String(parsed?.query || '').trim();
+          return query || String(fallbackQuery || '').trim();
+        } catch {}
+      }
+
+      const inlineMatch = text.match(/functions\.webSearch(?::\d+)?[\s\S]*?"query"\s*:\s*"([^"]+)"/i);
+      if (inlineMatch) return inlineMatch[1].trim();
+
+      return String(fallbackQuery || '').trim();
+    }
+
+    async function tryWebSearchAnswer(text, settings, searchingMsg) {
+      const searchingIndex = chatMessagesList.length;
+      chatMessagesList.push({ role: 'assistant', content: searchingMsg });
+      renderChatMessages();
+
+      const searchResult = await window.electronAPI.webSearch({
+        query: text,
+        topK: settings.webSearchTopK
+      });
+
+      if (!searchResult.success) {
+        chatMessagesList.splice(searchingIndex, 1);
+        renderChatMessages();
+        return { success: false, error: searchResult.error };
+      }
+
+      const evidence = (searchResult.results || []).map((item, index) =>
+        `${index + 1}. ${item.title}\n${item.snippet}\n${item.url}`
+      ).join('\n\n');
+      const summarizeResult = await window.electronAPI.chat({
+        baseUrl: settings.baseUrl,
+        model: settings.model,
+        apiKey: settings.apiKey,
+        provider: settings.provider,
+        messages: [
+          { role: 'system', content: '你是检索总结助手。请根据证据回答问题，并在结尾附上来源链接。' },
+          { role: 'user', content: `用户问题：${text}\n\n证据：\n${evidence}\n\n请给出简洁结论并列出来源链接。` }
+        ]
+      });
+
+      if (summarizeResult.success) {
+        chatMessagesList[searchingIndex] = { role: 'assistant', content: summarizeResult.content };
+        renderChatMessages();
+        if (!isChatOpen()) showSpeech(summarizeResult.content, 4000);
+        return { success: true };
+      }
+
+      const directResults = formatDirectSearchResults(text, searchResult.results || []);
+      chatMessagesList[searchingIndex] = { role: 'assistant', content: `${directResults}\n\n（自动总结失败：${summarizeResult.error}）` };
+      renderChatMessages();
+      if (!isChatOpen()) showSpeech('联网搜索成功，但自动总结失败，已直接展示结果。', 3500);
+      return { success: true };
+    }
+
     function loadSessions() {
       try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; } catch { return []; }
     }
@@ -259,6 +339,11 @@
       render();
 
       try {
+        if (settings.autoWebFallback && shouldPreferWebSearch(text)) {
+          const webFirstResult = await tryWebSearchAnswer(text, settings, '这是时效性问题，我先联网搜索一下...');
+          if (webFirstResult.success) return;
+        }
+
         const messages = [
           { role: 'system', content: getSystemPrompt() },
           ...chatMessagesList.slice(-10)
@@ -273,51 +358,30 @@
         });
 
         if (result.success) {
+          const embeddedWebSearchQuery = settings.autoWebFallback
+            ? extractEmbeddedWebSearchQuery(result.content, text)
+            : '';
+          if (embeddedWebSearchQuery) {
+            const toolCallResult = await tryWebSearchAnswer(embeddedWebSearchQuery, settings, '检测到联网搜索指令，正在执行...');
+            if (toolCallResult.success) return;
+          }
           chatMessagesList.push({ role: 'assistant', content: result.content });
           renderChatMessages();
           if (!isChatOpen()) showSpeech(result.content, 4000);
         } else {
           if (settings.autoWebFallback) {
-            const searchingMsg = '主回答失败，正在联网搜索并总结...';
-            const searchingIndex = chatMessagesList.length;
-            chatMessagesList.push({ role: 'assistant', content: searchingMsg });
-            renderChatMessages();
-
-            const searchResult = await window.electronAPI.webSearch({
-              query: text,
-              topK: settings.webSearchTopK
-            });
-
-            if (searchResult.success) {
-              const evidence = (searchResult.results || []).map((item, index) =>
-                `${index + 1}. ${item.title}\n${item.snippet}\n${item.url}`
-              ).join('\n\n');
-              const summarizeResult = await window.electronAPI.chat({
-                baseUrl: settings.baseUrl,
-                model: settings.model,
-                apiKey: settings.apiKey,
-                provider: settings.provider,
-                messages: [
-                  { role: 'system', content: '你是检索总结助手。请根据证据回答问题，并在结尾附上来源链接。' },
-                  { role: 'user', content: `用户问题：${text}\n\n证据：\n${evidence}\n\n请给出简洁结论并列出来源链接。` }
-                ]
-              });
-
-              if (summarizeResult.success) {
-                chatMessagesList[searchingIndex] = { role: 'assistant', content: summarizeResult.content };
-                renderChatMessages();
-                if (!isChatOpen()) showSpeech(summarizeResult.content, 4000);
-              } else {
-                const combinedError = `出错了：${result.error}；联网搜索成功，但总结失败：${summarizeResult.error}`;
-                chatMessagesList[searchingIndex] = { role: 'assistant', content: combinedError };
-                renderChatMessages();
-                if (!isChatOpen()) showSpeech(combinedError, 3000);
-              }
-            } else {
-              const combinedError = `出错了：${result.error}；联网搜索失败：${searchResult.error}`;
-              chatMessagesList[searchingIndex] = { role: 'assistant', content: combinedError };
+            const fallbackResult = await tryWebSearchAnswer(text, settings, '主回答失败，正在联网搜索并总结...');
+            if (!fallbackResult.success) {
+              const combinedError = `出错了：${result.error}；联网搜索失败：${fallbackResult.error}`;
+              chatMessagesList.push({ role: 'assistant', content: combinedError });
               renderChatMessages();
               if (!isChatOpen()) showSpeech(combinedError, 3000);
+            } else {
+              const latestReply = chatMessagesList[chatMessagesList.length - 1];
+              if (latestReply && latestReply.role === 'assistant' && latestReply.content.includes('自动总结失败：')) {
+                latestReply.content = `${latestReply.content.slice(0, -1)}；主回答失败：${result.error}）`;
+                renderChatMessages();
+              }
             }
           } else {
             const errMsg = '出错了：' + result.error;
@@ -346,6 +410,7 @@
       chatSend.addEventListener('click', sendMessage);
       chatClose.addEventListener('click', closeChat);
       chatInput.addEventListener('keydown', (e) => {
+        if (e.isComposing || e.keyCode === 229) return;
         if (e.key === 'Enter') sendMessage();
       });
     }

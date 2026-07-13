@@ -735,6 +735,7 @@ function reportRobotBounds() {
 container.addEventListener('mousedown', (e) => {
   if (e.button !== 0) return;
   if (e.target.closest('#snooze-bar')) return;
+  if (e.target.closest('#chat-panel')) return;
   e.preventDefault();
   isDragging = true;
   dragStartX = e.clientX;
@@ -829,7 +830,6 @@ function updateMouseCapture() {
     isMonitorOpen ||
     isReminderOpen ||
     isTodoOpen ||
-    isChatOpen ||
     isDblClickAnimating ||
     !snoozeBar.classList.contains('hidden') ||
     !speechBubble.classList.contains('hidden');
@@ -844,7 +844,7 @@ function handleRobotMouseMove(clientX, clientY) {
     resetPetPerspective();
     return;
   }
-  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isTodoOpen || isChatOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || !speechBubble.classList.contains('hidden')) {
+  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isTodoOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || !speechBubble.classList.contains('hidden')) {
     resetPetPerspective();
     return;
   }
@@ -854,14 +854,32 @@ function handleRobotMouseMove(clientX, clientY) {
   const el = document.elementFromPoint(clientX, clientY);
   const overChatPanel = !!(el && el.closest('#chat-panel'));
   const overReminderCenter = !!(el && el.closest('#reminder-center'));
+  const overSettingsModal = !!(el && el.closest('#settings-modal'));
+  const overTodoList = !!(el && el.closest('#todo-list'));
+  const overSystemMonitor = !!(el && el.closest('#system-monitor'));
+  const overPortMonitor = !!(el && el.closest('#port-monitor'));
   // Use bounding rect for speech bubble since it overflows the container (top: -50px)
   const sbRect = speechBubble.getBoundingClientRect();
   const overSpeechBubble = !speechBubble.classList.contains('hidden') &&
     clientX >= sbRect.left && clientX <= sbRect.right &&
     clientY >= sbRect.top && clientY <= sbRect.bottom;
-  if (overContainer) updatePetPerspective(clientX, clientY);
-  else resetPetPerspective();
-  setMouseCapture(overContainer || overChatPanel || overReminderCenter || overSpeechBubble);
+  if (isChatOpen) {
+    resetPetPerspective();
+  } else if (overContainer) {
+    updatePetPerspective(clientX, clientY);
+  } else {
+    resetPetPerspective();
+  }
+  setMouseCapture(
+    overContainer ||
+    overChatPanel ||
+    overReminderCenter ||
+    overSettingsModal ||
+    overTodoList ||
+    overSystemMonitor ||
+    overPortMonitor ||
+    overSpeechBubble
+  );
 }
 
 document.addEventListener('mousemove', (e) => {

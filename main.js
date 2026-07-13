@@ -7,7 +7,15 @@ const os = require('os');
 const fs = require('fs');
 const { execFile } = require('child_process');
 const util = require('util');
-const { dedupeResults, normalizeWebSearchPayload } = require('./lib/web-fallback');
+const {
+  buildSearchQueryVariants,
+  dedupeResults,
+  normalizeWebSearchPayload,
+  parseDuckDuckGoResults,
+  parseBingResults,
+  parseSoResults,
+  rankRelevantResults
+} = require('./lib/web-fallback');
 const execFileAsync = util.promisify(execFile);
 
 let uIOhook = null;
@@ -386,34 +394,83 @@ ipcMain.handle('web-search', async (event, payload) => {
   const { query, topK } = normalizedPayload;
 
   try {
-    const url = new URL('https://duckduckgo.com/html/?q=' + encodeURIComponent(query));
-    const html = await new Promise((resolve, reject) => {
-      const req = https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
-        let data = '';
-        res.on('data', (chunk) => (data += chunk));
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(data);
+    async function fetchSearchHtml(url, headers = {}, redirectCount = 0) {
+      return await new Promise((resolve, reject) => {
+        const req = https.get(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0',
+            ...headers
+          }
+        }, (res) => {
+          const statusCode = res.statusCode || 0;
+          if ([301, 302, 303, 307, 308].includes(statusCode)) {
+            if (redirectCount >= 3) {
+              reject(new Error(`Too many redirects for ${url.hostname}`));
+              return;
+            }
+            const location = res.headers.location;
+            if (!location) {
+              reject(new Error(`Redirect without location for ${url.hostname}`));
+              return;
+            }
+            resolve(fetchSearchHtml(new URL(location, url), headers, redirectCount + 1));
             return;
           }
-          reject(new Error(`HTTP ${res.statusCode}`));
-        });
-      });
-      req.setTimeout(12000, () => req.destroy(new Error('Search timeout')));
-      req.on('error', reject);
-    });
 
-    const blocks = [
-      ...html.matchAll(/<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g)
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => {
+            if (statusCode >= 200 && statusCode < 300) {
+              resolve(data);
+              return;
+            }
+            reject(new Error(`HTTP ${statusCode} from ${url.hostname}`));
+          });
+        });
+        req.setTimeout(12000, () => req.destroy(new Error(`Search timeout from ${url.hostname}`)));
+        req.on('error', reject);
+      });
+    }
+
+    const providers = [
+      {
+        name: '360Search',
+        parse: parseSoResults
+      },
+      {
+        name: 'Bing',
+        parse: parseBingResults
+      },
+      {
+        name: 'DuckDuckGo',
+        parse: parseDuckDuckGoResults
+      }
     ];
-    const raw = blocks.map((m) => ({
-      url: m[1].replace(/&amp;/g, '&'),
-      title: m[2].replace(/<[^>]+>/g, '').trim(),
-      snippet: m[3].replace(/<[^>]+>/g, '').trim()
-    }));
-    const results = dedupeResults(raw, topK);
-    if (results.length === 0) return { success: false, error: 'No search results' };
-    return { success: true, results };
+
+    const failures = [];
+    const queryVariants = buildSearchQueryVariants(query);
+    for (const variant of queryVariants) {
+      for (const provider of providers) {
+        try {
+          const providerUrl = provider.name === '360Search'
+            ? new URL('https://www.so.com/s?q=' + encodeURIComponent(variant))
+            : provider.name === 'Bing'
+              ? new URL('https://cn.bing.com/search?q=' + encodeURIComponent(variant))
+              : new URL('https://duckduckgo.com/html/?q=' + encodeURIComponent(variant));
+          const html = await fetchSearchHtml(providerUrl);
+          const parsed = dedupeResults(provider.parse(html), topK * 2);
+          const results = rankRelevantResults(parsed, variant, topK);
+          if (results.length > 0) {
+            return { success: true, results };
+          }
+          failures.push(`${provider.name}(${variant}): No relevant search results`);
+        } catch (error) {
+          failures.push(`${provider.name}(${variant}): ${error.message}`);
+        }
+      }
+    }
+
+    return { success: false, error: failures.join('; ') || 'No relevant search results' };
   } catch (err) {
     return { success: false, error: err.message };
   }

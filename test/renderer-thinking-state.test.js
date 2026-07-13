@@ -35,10 +35,54 @@ test('sendMessage keeps thinking state until fallback pipeline ends', () => {
   assert.equal(resets.length, 1, 'should reset thinking=false exactly once');
 });
 
+test('sendMessage shows direct search results when summarize step fails', () => {
+  const source = fs.readFileSync(rendererChatPath, 'utf8');
+  assert.match(source, /function formatDirectSearchResults\(question, results\)/);
+  assert.match(source, /async function tryWebSearchAnswer\(text, settings, searchingMsg\)/);
+  assert.match(source, /const directResults = formatDirectSearchResults\(text, searchResult\.results \|\| \[\]\);/);
+  assert.match(source, /联网搜索成功，但自动总结失败，已直接展示结果/);
+});
+
+test('sendMessage prefers web search first for time-sensitive questions', () => {
+  const source = fs.readFileSync(rendererChatPath, 'utf8');
+  assert.match(source, /function shouldPreferWebSearch\(text\)/);
+  assert.match(source, /if \(settings\.autoWebFallback && shouldPreferWebSearch\(text\)\) \{/);
+  assert.match(source, /这是时效性问题，我先联网搜索一下\.\.\./);
+  assert.match(source, /月销量/);
+});
+
+test('sendMessage intercepts embedded webSearch tool-call text instead of rendering it raw', () => {
+  const source = fs.readFileSync(rendererChatPath, 'utf8');
+  assert.match(source, /function extractEmbeddedWebSearchQuery\(content, fallbackQuery\)/);
+  assert.match(source, /if \(!\/functions\\\.webSearch\/i\.test\(text\)\) return '';/);
+  assert.match(source, /const embeddedWebSearchQuery = settings\.autoWebFallback/);
+  assert.match(source, /检测到联网搜索指令，正在执行\.\.\./);
+});
+
 test('openChat enables mouse capture to keep robot clickable after outside clicks', () => {
   const source = fs.readFileSync(rendererChatPath, 'utf8');
   const body = extractFunctionBody(source, 'function openChat() {');
   assert.match(body, /setMouseCapture\(true\)/, 'openChat should enable mouse capture');
+});
+
+test('chat open does not force whole-window mouse capture', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  const updateBody = extractFunctionBody(source, 'function updateMouseCapture() {');
+  assert.doesNotMatch(updateBody, /isChatOpen/, 'chat open should not force full-window capture');
+});
+
+test('chat panel selection is not intercepted by drag handling', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert.match(source, /if \(e\.target\.closest\('#chat-panel'\)\) return;/);
+  assert.match(css, /#chat-panel \{[\s\S]*user-select:\s*text;/);
+  assert.match(css, /#chat-messages \{[\s\S]*user-select:\s*text;/);
+});
+
+test('chat input does not send while IME composition is active', () => {
+  const source = fs.readFileSync(rendererChatPath, 'utf8');
+  assert.match(source, /if \(e\.isComposing \|\| e\.keyCode === 229\) return;/);
+  assert.match(source, /if \(e\.key === 'Enter'\) sendMessage\(\);/);
 });
 
 test('idle animations resume only when no UI remains open', () => {
@@ -83,7 +127,8 @@ test('mousemove passthrough should not disable capture while chat is open', () =
   const source = fs.readFileSync(rendererPath, 'utf8');
   assert.match(source, /const overChatPanel = !!\(el && el\.closest\('#chat-panel'\)\);/, 'mousemove handler should detect chat panel hover');
   assert.match(source, /const overReminderCenter = !!\(el && el\.closest\('#reminder-center'\)\);/, 'mousemove handler should detect reminder center hover');
-  assert.match(source, /setMouseCapture\(overContainer \|\| overChatPanel \|\| overReminderCenter \|\| overSpeechBubble\);/, 'mousemove handler should keep capture for robot, chat panel, reminder center, or speech bubble');
+  assert.match(source, /if \(isChatOpen\) \{\s*resetPetPerspective\(\);/, 'chat open should stop pet perspective while preserving hover hit-testing');
+  assert.match(source, /overChatPanel \|\|[\s\S]*overReminderCenter \|\|[\s\S]*overSettingsModal \|\|[\s\S]*overTodoList \|\|[\s\S]*overSystemMonitor \|\|[\s\S]*overPortMonitor \|\|[\s\S]*overSpeechBubble/, 'mousemove handler should keep capture only for interactive surfaces');
 });
 
 test('render toggles thinking-tech class by isThinking', () => {
