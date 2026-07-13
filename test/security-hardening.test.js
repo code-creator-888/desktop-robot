@@ -44,6 +44,19 @@ test('kill-process uses process.kill instead of shell kill commands', () => {
   assert.match(source, /process\.kill\(normalizedPid,\s*'SIGKILL'\)/);
 });
 
+test('kill-process only kills pids found in a fresh listening-process scan', () => {
+  const source = fs.readFileSync(mainPath, 'utf8');
+  const handlerMatch = source.match(/ipcMain\.handle\('kill-process',[\s\S]*?\n\}\);/);
+  assert.ok(handlerMatch, 'kill-process handler not found');
+  const handlerSource = handlerMatch[0];
+
+  // Must re-scan currently listening processes and reject pids outside that set
+  // before calling process.kill, instead of trusting the renderer-supplied pid blindly.
+  assert.match(handlerSource, /scanListeningProcesses\(\)/);
+  assert.match(handlerSource, /processes\.some\(\(?p\)? => p\.pid === normalizedPid\)/);
+  assert.match(handlerSource, /return \{ success: false, error: '该进程未在监听端口中，拒绝终止' \};/);
+});
+
 test('main process protects and unprotects API keys with safeStorage', () => {
   const source = fs.readFileSync(mainPath, 'utf8');
   assert.match(source, /safeStorage/);

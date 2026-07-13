@@ -763,6 +763,14 @@ ipcMain.handle('kill-process', async (event, pid) => {
   if (!normalizedPid) {
     return { success: false, error: '无效 PID' };
   }
+  // Re-scan currently listening processes so we only ever kill a pid that is
+  // actually bound to a port right now, instead of trusting the renderer-supplied
+  // pid blindly (the renderer only has read access to this list, but defense in
+  // depth keeps this handler from becoming a generic "kill any process" primitive).
+  const processes = await scanListeningProcesses();
+  if (!processes.some((p) => p.pid === normalizedPid)) {
+    return { success: false, error: '该进程未在监听端口中，拒绝终止' };
+  }
   try {
     process.kill(normalizedPid, 'SIGTERM');
   } catch (e) {
