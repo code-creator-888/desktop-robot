@@ -165,12 +165,17 @@ function render() {
 }
 
 function showSpeech(text, duration, persistent, type) {
-  snoozeBar.classList.add('hidden');
-  if (reminderController) reminderController.clearCurrentAlert();
+  const isReminderAlert = type === 'reminder-alert';
+  if (!isReminderAlert && reminderController && reminderController.hasActiveAlert()) return;
+  if (!isReminderAlert) {
+    snoozeBar.classList.add('hidden');
+    if (reminderController) reminderController.clearCurrentAlert();
+  }
   speechBubble.textContent = text;
-  speechBubble.classList.remove('hidden', 'wrap', 'news');
+  speechBubble.classList.remove('hidden', 'wrap', 'news', 'reminder-alert');
   speechBubble.classList.toggle('clickable', !!persistent);
   if (type === 'news') speechBubble.classList.add('news');
+  else if (isReminderAlert) speechBubble.classList.add('reminder-alert');
   else speechBubble.classList.toggle('wrap', text.length > SPEECH_WRAP_THRESHOLD);
   speechBubble.classList.remove('speech-pop');
   void speechBubble.offsetWidth;
@@ -188,6 +193,8 @@ function showSpeech(text, duration, persistent, type) {
 
 speechBubble.addEventListener('click', () => {
   if (speechBubble.classList.contains('hidden')) return;
+  if (reminderController && reminderController.hasActiveAlert()) return;
+  if (speechBubble.classList.contains('clickable') || speechBubble.classList.contains('news')) return;
   clearTimeout(speechTimeout);
   speechBubble.classList.add('hidden');
   speechBubble.classList.remove('clickable', 'news');
@@ -770,6 +777,10 @@ function setMouseCapture(capture) {
 // Sync isCapturing when main process directly calls win.setIgnoreMouseEvents (e.g. right-click menu)
 window.electronAPI.onIgnoreMouseEventsChanged((ignore) => {
   isCapturing = !ignore;
+});
+
+window.electronAPI.onSyncMouseCapture(() => {
+  updateMouseCapture();
 });
 
 function resetPetPerspective() {

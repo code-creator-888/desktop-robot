@@ -36,6 +36,7 @@
     let editingReminderId = null;
     let countdownInterval = null;
     let currentAlertItem = null;
+    let pendingAlertIds = [];
 
     function loadReminderItems() {
       try {
@@ -49,6 +50,7 @@
             const ruleType = item.rule?.type || 'one-time';
             return {
               ...item,
+              alertPending: !!item.alertPending,
               rule: {
                 type: VALID_RULE_TYPES.includes(ruleType) ? ruleType : 'one-time'
               },
@@ -62,6 +64,17 @@
 
     function saveReminderItems() {
       localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(reminderItems));
+    }
+
+    function findReminderById(id) {
+      return reminderItems.find(item => item.id === id) || null;
+    }
+
+    function queueReminderAlert(item) {
+      if (!item?.id) return;
+      if (currentAlertItem?.id === item.id) return;
+      if (pendingAlertIds.includes(item.id)) return;
+      pendingAlertIds.push(item.id);
     }
 
     function formatReminderTime(iso) {
@@ -268,30 +281,9 @@
       if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
     }
 
-    function addManualReminder() {
-      const title = reminderAddTitle.value.trim();
-      const dueRaw = reminderAddTime.value;
-      const dueAt = dueRaw ? new Date(dueRaw).toISOString() : '';
-      const selectedRuleType = VALID_RULE_TYPES.includes(reminderRuleType?.value) ? reminderRuleType.value : 'one-time';
-      if (!title || !dueAt) return;
-      reminderItems.push({
-        id: Date.now().toString() + Math.random().toString(16).slice(2, 8),
-        title,
-        dueAt,
-        source: 'manual',
-        rule: { type: selectedRuleType },
-        nextTriggerAt: dueAt,
-        status: 'pending',
-        lastNotifiedAt: 0
-      });
-      saveReminderItems();
-      renderReminderList();
-      reminderAddTitle.value = '';
-    }
-
-    function triggerReminderAlert(item) {
-      showSpeech(`提醒：${item.title}`, 0, true);
+    function showActiveReminderAlert(item) {
       currentAlertItem = item;
+      showSpeech(`提醒：${item.title}`, 0, true, 'reminder-alert');
       snoozeBar.classList.remove('hidden');
       setMouseCapture(true);
       reportRobotBounds();
@@ -319,19 +311,59 @@
       setTimeout(() => petEl.classList.remove('attention-wiggle'), 1600);
     }
 
+    function addManualReminder() {
+      const title = reminderAddTitle.value.trim();
+      const dueRaw = reminderAddTime.value;
+      const dueAt = dueRaw ? new Date(dueRaw).toISOString() : '';
+      const selectedRuleType = VALID_RULE_TYPES.includes(reminderRuleType?.value) ? reminderRuleType.value : 'one-time';
+      if (!title || !dueAt) return;
+      reminderItems.push({
+        id: Date.now().toString() + Math.random().toString(16).slice(2, 8),
+        title,
+        dueAt,
+        source: 'manual',
+        rule: { type: selectedRuleType },
+        nextTriggerAt: dueAt,
+        status: 'pending',
+        lastNotifiedAt: 0
+      });
+      saveReminderItems();
+      renderReminderList();
+      reminderAddTitle.value = '';
+    }
+
+    function triggerReminderAlert(item) {
+      if (!item) return;
+      item.alertPending = true;
+      queueReminderAlert(item);
+      if (!currentAlertItem) showNextQueuedAlert();
+    }
+
+    function showNextQueuedAlert() {
+      if (currentAlertItem) return false;
+      while (pendingAlertIds.length > 0) {
+        const nextId = pendingAlertIds.shift();
+        const item = findReminderById(nextId);
+        if (!item || !item.alertPending) continue;
+        showActiveReminderAlert(item);
+        return true;
+      }
+      return false;
+    }
+
     function checkDueReminders() {
       const now = Date.now();
       let dirty = false;
       for (const item of reminderItems) {
-        if (item.status === 'done') continue;
+        if (item.status === 'done' || item.alertPending) continue;
         const triggerTs = new Date(item.nextTriggerAt || item.dueAt).getTime();
         if (Number.isNaN(triggerTs) || now < triggerTs) continue;
         const last = Number(item.lastNotifiedAt || 0);
         if (now - last < 5 * 60 * 1000) continue;
         item.lastNotifiedAt = now;
         triggerReminderAlert(item);
-        item.nextTriggerAt = computeNextTriggerAt(item, triggerTs);
-        if (!item.nextTriggerAt) item.status = 'done';
+        const nextTriggerAt = computeNextTriggerAt(item, triggerTs);
+        if (nextTriggerAt) item.nextTriggerAt = nextTriggerAt;
         dirty = true;
       }
       if (dirty) {
@@ -360,12 +392,19 @@
     function handleSpeechBubbleClick() {
       if (!speechBubble.classList.contains('clickable') && !speechBubble.classList.contains('news') && !currentAlertItem) return;
       speechBubble.classList.add('hidden');
-      speechBubble.classList.remove('clickable', 'news');
+      speechBubble.classList.remove('clickable', 'news', 'reminder-alert');
       snoozeBar.classList.add('hidden');
-      currentAlertItem = null;
+      if (currentAlertItem) {
+        currentAlertItem.alertPending = false;
+        if ((currentAlertItem.rule?.type || 'one-time') === 'one-time') {
+          currentAlertItem.status = 'done';
+        }
+        currentAlertItem = null;
+        saveReminderItems();
+      }
       reportRobotBounds();
       clearSpeechTimeout();
-      updateMouseCapture();
+      if (!showNextQueuedAlert()) updateMouseCapture();
     }
 
     function doSnooze() {
@@ -380,13 +419,14 @@
       currentAlertItem.lastNotifiedAt = Date.now();
       currentAlertItem.nextTriggerAt = new Date(Date.now() + validMins * 60 * 1000).toISOString();
       currentAlertItem.status = 'pending';
+      currentAlertItem.alertPending = false;
       saveReminderItems();
       speechBubble.classList.add('hidden');
       speechBubble.classList.remove('clickable', 'news', 'reminder-alert');
       snoozeBar.classList.add('hidden');
       currentAlertItem = null;
       reportRobotBounds();
-      updateMouseCapture();
+      if (!showNextQueuedAlert()) updateMouseCapture();
     }
 
     function bindReminderEvents() {
@@ -417,12 +457,22 @@
 
     function init() {
       reminderItems = loadReminderItems();
+      pendingAlertIds = [];
+      [...reminderItems]
+        .filter(item => item.alertPending)
+        .sort((a, b) => new Date(a.nextTriggerAt || a.dueAt).getTime() - new Date(b.nextTriggerAt || b.dueAt).getTime())
+        .forEach(queueReminderAlert);
       checkDueReminders();
+      showNextQueuedAlert();
       setInterval(checkDueReminders, 30000);
     }
 
     function clearCurrentAlert() {
       currentAlertItem = null;
+    }
+
+    function hasActiveAlert() {
+      return !!currentAlertItem;
     }
 
     return {
@@ -434,7 +484,8 @@
       checkDueReminders,
       doSnooze,
       handleSpeechBubbleClick,
-      clearCurrentAlert
+      clearCurrentAlert,
+      hasActiveAlert
     };
   }
 

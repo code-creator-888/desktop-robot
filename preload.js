@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore),
   onIgnoreMouseEventsChanged: (cb) => ipcRenderer.on('set-ignore-mouse-events', (_, ignore) => cb(ignore)),
+  onSyncMouseCapture: (cb) => ipcRenderer.on('sync-mouse-capture', () => cb()),
   showContextMenu: (x, y) => ipcRenderer.send('show-context-menu', { x, y }),
   onMenuAction: (callback) => ipcRenderer.on('menu-action', (event, action) => callback(action)),
   quit: () => ipcRenderer.send('quit-app'),

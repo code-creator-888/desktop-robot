@@ -87,8 +87,11 @@ async function handleTranslateShortcut() {
     const oldClip = clipboard.readText();
     await execFileAsync('/usr/bin/osascript', ['-e', 'tell application "System Events" to keystroke "c" using command down']);
     await new Promise(r => setTimeout(r, 300));
-    const selected = clipboard.readText().trim();
-    setTimeout(() => clipboard.writeText(oldClip), 500);
+    const selectedRaw = clipboard.readText();
+    const selected = selectedRaw.trim();
+    setTimeout(() => {
+      if (clipboard.readText() === selectedRaw) clipboard.writeText(oldClip);
+    }, 500);
     if (win) win.webContents.send('translate-selection', selected);
   } catch (e) {
     console.log('[translate] error:', e.message);
@@ -214,7 +217,14 @@ app.whenReady().then(() => {
         win.webContents.send('set-ignore-mouse-events', false);
         win.setIgnoreMouseEvents(false);
         const menu = await buildRobotMenuAsync();
-        menu.popup({ window: win, x: e.x - win.getBounds().x, y: e.y - win.getBounds().y });
+        menu.popup({
+          window: win,
+          x: e.x - win.getBounds().x,
+          y: e.y - win.getBounds().y,
+          callback: () => {
+            if (win && !win.isDestroyed()) win.webContents.send('sync-mouse-capture');
+          }
+        });
       }
     });
 
@@ -234,7 +244,14 @@ ipcMain.on('set-robot-bounds', (event, bounds) => {
 ipcMain.on('show-context-menu', async (event, { x, y }) => {
   if (!win) return;
   const menu = await buildRobotMenuAsync();
-  menu.popup({ window: win, x, y });
+  menu.popup({
+    window: win,
+    x,
+    y,
+    callback: () => {
+      if (win && !win.isDestroyed()) win.webContents.send('sync-mouse-capture');
+    }
+  });
 });
 
 ipcMain.on('quit-app', () => {

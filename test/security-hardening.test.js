@@ -80,6 +80,7 @@ test('chat decrypts protected API keys in the main process', () => {
 test('preload exposes secret protection without exposing decrypt', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
   assert.match(source, /protectSecret:\s*\(secret\) => ipcRenderer\.invoke\('protect-secret', secret\)/);
+  assert.match(source, /onSyncMouseCapture:\s*\(cb\) => ipcRenderer\.on\('sync-mouse-capture', \(\) => cb\(\)\)/);
   assert.doesNotMatch(source, /decrypt|unprotect/i);
 });
 
@@ -179,4 +180,13 @@ test('CPU status lines do not append duplicate percent symbols', () => {
   assert.match(source, /CPU \$\{stats\.cpu\}！！/);
   assert.match(source, /CPU \$\{stats\.cpu\}，还行还行/);
   assert.match(source, /CPU 才 \$\{stats\.cpu\}，/);
+});
+
+test('context menu close re-syncs mouse capture and clipboard restore avoids stomping newer copies', () => {
+  const main = fs.readFileSync(mainPath, 'utf8');
+  const renderer = fs.readFileSync(rendererPath, 'utf8');
+  assert.match(main, /if \(clipboard\.readText\(\) === selectedRaw\) clipboard\.writeText\(oldClip\);/);
+  assert.match(main, /win\.webContents\.send\('sync-mouse-capture'\)/);
+  assert.match(main, /menu\.popup\(\{[\s\S]*callback:\s*\(\)\s*=>\s*\{[\s\S]*sync-mouse-capture/);
+  assert.match(renderer, /window\.electronAPI\.onSyncMouseCapture\(\(\) => \{\s*updateMouseCapture\(\);/);
 });
