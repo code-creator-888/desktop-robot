@@ -9,7 +9,15 @@ const rendererMonitorPath = path.join(__dirname, '..', 'renderer-monitor.js');
 const rendererSettingsPath = path.join(__dirname, '..', 'renderer-settings.js');
 const rendererChatPath = path.join(__dirname, '..', 'renderer-chat.js');
 const rendererReminderPath = path.join(__dirname, '..', 'renderer-reminder.js');
+const rendererNewsPath = path.join(__dirname, '..', 'renderer-news.js');
+const rendererTranslatePath = path.join(__dirname, '..', 'renderer-translate.js');
+const rendererEffectsPath = path.join(__dirname, '..', 'renderer-effects.js');
 const mainPath = path.join(__dirname, '..', 'main.js');
+const chatIpcPath = path.join(__dirname, '..', 'lib', 'chat-ipc.js');
+const secretsPath = path.join(__dirname, '..', 'lib', 'secrets.js');
+const portMonitorPath = path.join(__dirname, '..', 'lib', 'port-monitor.js');
+const systemMonitorPath = path.join(__dirname, '..', 'lib', 'system-monitor.js');
+const webSearchIpcPath = path.join(__dirname, '..', 'lib', 'web-search-ipc.js');
 const indexPath = path.join(__dirname, '..', 'index.html');
 const packagePath = path.join(__dirname, '..', 'package.json');
 
@@ -30,14 +38,52 @@ test('renderer safely renders user-controlled reminder and session fields', () =
 
 test('main process validates port and pid IPC inputs', () => {
   const source = fs.readFileSync(mainPath, 'utf8');
-  assert.match(source, /function normalizePort\(port\)/);
-  assert.match(source, /function normalizePid\(pid\)/);
-  assert.match(source, /n < 1 \|\| n > 65535/);
-  assert.match(source, /n === process\.pid/);
+  const chatIpc = fs.readFileSync(chatIpcPath, 'utf8');
+  const portMonitor = fs.readFileSync(portMonitorPath, 'utf8');
+  assert.match(source, /createPortMonitor\(\{/);
+  assert.match(portMonitor, /function normalizePort\(port\)/);
+  assert.match(portMonitor, /function normalizePid\(pid\)/);
+  assert.match(source, /createChatIpc\(\{ ipcMain, unprotectSecret \}\)/);
+  assert.match(chatIpc, /function normalizeChatPayload\(payload\)/);
+  assert.match(source, /function normalizeRobotBounds\(bounds\)/);
+  assert.match(source, /function normalizeContextMenuPoint\(point\)/);
+  assert.match(portMonitor, /app\.getPath\('userData'\)/);
+  assert.match(portMonitor, /function migrateLegacyPortsFile\(\)/);
+  assert.match(portMonitor, /n < 1 \|\| n > 65535/);
+  assert.match(portMonitor, /n === process\.pid/);
+});
+
+test('chat IPC validates base URL protocol and payload shape', () => {
+  const source = fs.readFileSync(chatIpcPath, 'utf8');
+  assert.match(source, /new URL\(baseUrl\)/);
+  assert.match(source, /Unsupported base URL protocol/);
+  assert.match(source, /HTTP base URL is only allowed for local debugging/);
+  assert.match(source, /messages\.slice\(-30\)/);
+  assert.match(source, /content: String\(message\?\.content \|\| ''\)\.slice\(0, 20000\)/);
+  assert.match(source, /requestId: String\(payload\.requestId \|\| ''\)\.slice\(0, 80\)/);
+  assert.match(source, /const activeChatRequests = new Map\(\)/);
+  assert.match(source, /ipcMain\.handle\('cancel-chat'/);
+});
+
+test('browser window uses hardened web preferences', () => {
+  const source = fs.readFileSync(mainPath, 'utf8');
+  assert.match(source, /sandbox:\s*true/);
+  assert.match(source, /contextIsolation:\s*true/);
+  assert.match(source, /nodeIntegration:\s*false/);
+  assert.match(source, /webSecurity:\s*true/);
+  assert.match(source, /allowRunningInsecureContent:\s*false/);
+});
+
+test('packaged app includes vendored three runtime asset', () => {
+  const html = fs.readFileSync(indexPath, 'utf8');
+  const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+  assert.match(html, /vendor\/three-global\.js/);
+  assert.ok(pkg.build.files.includes('vendor/**'));
+  assert.ok(pkg.build.files.includes('lib/**'));
 });
 
 test('kill-process uses process.kill instead of shell kill commands', () => {
-  const source = fs.readFileSync(mainPath, 'utf8');
+  const source = fs.readFileSync(portMonitorPath, 'utf8');
   assert.doesNotMatch(source, /execAsync\(`kill/);
   assert.doesNotMatch(source, /kill -TERM|kill -KILL/);
   assert.match(source, /process\.kill\(normalizedPid,\s*'SIGTERM'\)/);
@@ -45,31 +91,34 @@ test('kill-process uses process.kill instead of shell kill commands', () => {
 });
 
 test('kill-process only kills pids found in a fresh listening-process scan', () => {
-  const source = fs.readFileSync(mainPath, 'utf8');
-  const handlerMatch = source.match(/ipcMain\.handle\('kill-process',[\s\S]*?\n\}\);/);
+  const source = fs.readFileSync(portMonitorPath, 'utf8');
+  const handlerMatch = source.match(/ipcMain\.handle\('kill-process',[\s\S]*?\n\s*\}\);/);
   assert.ok(handlerMatch, 'kill-process handler not found');
   const handlerSource = handlerMatch[0];
 
   // Must re-scan currently listening processes and reject pids outside that set
   // before calling process.kill, instead of trusting the renderer-supplied pid blindly.
-  assert.match(handlerSource, /scanListeningProcesses\(\)/);
+  assert.match(handlerSource, /scanListeningProcessesFresh\(\)/);
   assert.match(handlerSource, /processes\.some\(\(?p\)? => p\.pid === normalizedPid\)/);
   assert.match(handlerSource, /return \{ success: false, error: '该进程未在监听端口中，拒绝终止' \};/);
 });
 
 test('main process protects and unprotects API keys with safeStorage', () => {
-  const source = fs.readFileSync(mainPath, 'utf8');
-  assert.match(source, /safeStorage/);
+  const main = fs.readFileSync(mainPath, 'utf8');
+  const source = fs.readFileSync(secretsPath, 'utf8');
+  assert.match(main, /createSecretStore\(safeStorage\)/);
   assert.match(source, /const PROTECTED_SECRET_PREFIX = 'safe:v1:'/);
   assert.match(source, /function protectSecret\(secret\)/);
   assert.match(source, /safeStorage\.encryptString\(value\)/);
   assert.match(source, /function unprotectSecret\(secret\)/);
   assert.match(source, /safeStorage\.decryptString\(encrypted\)/);
-  assert.match(source, /ipcMain\.handle\('protect-secret'/);
+  assert.match(main, /ipcMain\.handle\('protect-secret'/);
 });
 
 test('chat decrypts protected API keys in the main process', () => {
-  const source = fs.readFileSync(mainPath, 'utf8');
+  const source = fs.readFileSync(chatIpcPath, 'utf8');
+  const main = fs.readFileSync(mainPath, 'utf8');
+  assert.match(main, /const \{ protectSecret, unprotectSecret \} = secretStore/);
   assert.match(source, /const resolvedApiKey = unprotectSecret\(apiKey\)/);
   assert.match(source, /'x-api-key': resolvedApiKey/);
   assert.match(source, /'Authorization': `Bearer \$\{resolvedApiKey\}`/);
@@ -80,6 +129,7 @@ test('chat decrypts protected API keys in the main process', () => {
 test('preload exposes secret protection without exposing decrypt', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
   assert.match(source, /protectSecret:\s*\(secret\) => ipcRenderer\.invoke\('protect-secret', secret\)/);
+  assert.match(source, /cancelChat:\s*\(requestId\) => ipcRenderer\.invoke\('cancel-chat', requestId\)/);
   assert.match(source, /onSyncMouseCapture:\s*\(cb\) => ipcRenderer\.on\('sync-mouse-capture', \(\) => cb\(\)\)/);
   assert.match(source, /openExternalUrl:\s*\(url\) => ipcRenderer\.invoke\('open-external-url', url\)/);
   assert.doesNotMatch(source, /decrypt|unprotect/i);
@@ -117,17 +167,32 @@ test('translation API key settings are protected and preserved when blank', () =
 
 test('system monitor avoids shell pipelines and overlapping refreshes', () => {
   const main = fs.readFileSync(mainPath, 'utf8');
+  const systemMonitor = fs.readFileSync(systemMonitorPath, 'utf8');
+  const portMonitor = fs.readFileSync(portMonitorPath, 'utf8');
   const renderer = fs.readFileSync(rendererPath, 'utf8');
   const monitor = fs.readFileSync(rendererMonitorPath, 'utf8');
   assert.doesNotMatch(main, /execAsync/);
+  assert.doesNotMatch(systemMonitor, /execAsync/);
+  assert.doesNotMatch(portMonitor, /execAsync/);
   assert.doesNotMatch(main, /netstat -ibn|awk|grep|tail -1/);
-  assert.match(main, /execFileAsync\('\/usr\/sbin\/netstat', \['-ibn'\]/);
-  assert.match(main, /execFileAsync\('\/usr\/sbin\/ioreg', \['-c', 'IOBlockStorageDriver', '-r', '-k', 'Statistics'\]/);
-  assert.match(main, /execFileAsync\('\/usr\/bin\/top', \['-l', '2', '-n', '0', '-s', '1'\]/);
+  assert.doesNotMatch(systemMonitor, /netstat -ibn|awk|grep|tail -1/);
+  assert.doesNotMatch(portMonitor, /netstat -ibn|awk|grep|tail -1/);
+  assert.match(main, /createSystemMonitor\(\{/);
+  assert.match(systemMonitor, /execFileAsync\('\/usr\/sbin\/netstat', \['-ibn'\]/);
+  assert.match(systemMonitor, /execFileAsync\('\/usr\/sbin\/ioreg', \['-c', 'IOBlockStorageDriver', '-r', '-k', 'Statistics'\]/);
+  assert.match(systemMonitor, /execFileAsync\('\/usr\/bin\/top', \['-l', '2', '-n', '0', '-s', '1'\]/);
   assert.match(renderer, /let systemStatsInFlight = false/);
   assert.match(renderer, /if \(systemStatsInFlight\) return/);
   assert.match(renderer, /let portStatsInFlight = false/);
   assert.match(renderer, /if \(portStatsInFlight\) return/);
+  assert.match(main, /const SYSTEM_STATS_CACHE_TTL_MS = 1500/);
+  assert.match(main, /const LISTENING_PROCESSES_CACHE_TTL_MS = 2000/);
+  assert.match(main, /function getCachedValue\(cache, ttlMs, producer\)/);
+  assert.match(main, /cacheTtlMs: SYSTEM_STATS_CACHE_TTL_MS/);
+  assert.match(systemMonitor, /getCachedValue\(systemStatsCache, cacheTtlMs, buildSystemStats\)/);
+  assert.match(main, /cacheTtlMs: LISTENING_PROCESSES_CACHE_TTL_MS/);
+  assert.match(portMonitor, /getCachedValue\(listeningProcessesCache, cacheTtlMs, scanListeningProcessesFresh\)/);
+  assert.match(portMonitor, /execFileAsync\('\/usr\/sbin\/lsof', \['-nP', '\+c', '0', '-iTCP', '-sTCP:LISTEN'\]/);
   assert.match(monitor, /function renderProcessList\(listId, processes\)/);
   assert.match(monitor, /function renderWatchedPorts\(data, handlers = \{\}\)/);
 });
@@ -144,27 +209,45 @@ test('renderer document declares a restrictive content security policy', () => {
 test('renderer feature modules are loaded before the main renderer', () => {
   const html = fs.readFileSync(indexPath, 'utf8');
   const packageJson = fs.readFileSync(packagePath, 'utf8');
-  assert.ok(html.indexOf('renderer-dom.js') < html.indexOf('renderer-monitor.js'));
+  assert.ok(html.indexOf('renderer-dom.js') < html.indexOf('renderer-robot3d.js'));
+  assert.ok(html.indexOf('renderer-robot3d.js') < html.indexOf('renderer-monitor.js'));
   assert.ok(html.indexOf('renderer-monitor.js') < html.indexOf('renderer-settings.js'));
   assert.ok(html.indexOf('renderer-settings.js') < html.indexOf('renderer-chat.js'));
   assert.ok(html.indexOf('renderer-chat.js') < html.indexOf('renderer-reminder.js'));
-  assert.ok(html.indexOf('renderer-reminder.js') < html.indexOf('renderer.js'));
+  assert.ok(html.indexOf('renderer-reminder.js') < html.indexOf('renderer-news.js'));
+  assert.ok(html.indexOf('renderer-news.js') < html.indexOf('renderer-translate.js'));
+  assert.ok(html.indexOf('renderer-translate.js') < html.indexOf('renderer-effects.js'));
+  assert.ok(html.indexOf('renderer-effects.js') < html.indexOf('renderer-todo.js'));
+  assert.ok(html.indexOf('renderer-todo.js') < html.indexOf('renderer.js'));
   assert.match(packageJson, /renderer-settings\.js/);
+  assert.match(packageJson, /renderer-robot3d\.js/);
   assert.match(packageJson, /renderer-chat\.js/);
   assert.match(packageJson, /renderer-reminder\.js/);
+  assert.match(packageJson, /renderer-news\.js/);
+  assert.match(packageJson, /renderer-translate\.js/);
+  assert.match(packageJson, /renderer-effects\.js/);
 });
 
 test('settings chat and reminder modules own their event binding', () => {
   const settings = fs.readFileSync(rendererSettingsPath, 'utf8');
   const chat = fs.readFileSync(rendererChatPath, 'utf8');
   const reminder = fs.readFileSync(rendererReminderPath, 'utf8');
+  const news = fs.readFileSync(rendererNewsPath, 'utf8');
+  const translate = fs.readFileSync(rendererTranslatePath, 'utf8');
+  const effects = fs.readFileSync(rendererEffectsPath, 'utf8');
   const renderer = fs.readFileSync(rendererPath, 'utf8');
   assert.match(settings, /bindSettingsEvents/);
   assert.match(chat, /bindChatEvents/);
   assert.match(reminder, /function bindReminderEvents\(\)/);
+  assert.match(news, /function bindNewsEvents\(\)/);
+  assert.match(translate, /function bindTranslateEvents\(\)/);
+  assert.match(effects, /function bindRobotClick\(\)/);
   assert.match(renderer, /settingsController\.bindSettingsEvents\(\)/);
   assert.match(renderer, /chatController\.bindChatEvents\(\)/);
   assert.match(renderer, /reminderController\.bindReminderEvents/);
+  assert.match(renderer, /newsController\.bindNewsEvents\(\)/);
+  assert.match(renderer, /translateController\.bindTranslateEvents\(\)/);
+  assert.match(renderer, /effectsController\.bindRobotClick\(\)/);
 });
 
 test('mousemove perspective work is throttled with requestAnimationFrame', () => {
@@ -176,7 +259,7 @@ test('mousemove perspective work is throttled with requestAnimationFrame', () =>
 });
 
 test('CPU status lines do not append duplicate percent symbols', () => {
-  const source = fs.readFileSync(rendererPath, 'utf8');
+  const source = fs.readFileSync(rendererEffectsPath, 'utf8');
   assert.doesNotMatch(source, /CPU \$\{stats\.cpu\}%/);
   assert.match(source, /CPU \$\{stats\.cpu\}！！/);
   assert.match(source, /CPU \$\{stats\.cpu\}，还行还行/);
@@ -194,10 +277,12 @@ test('context menu close re-syncs mouse capture and clipboard restore avoids sto
 
 test('news links open externally through validated main-process shell calls', () => {
   const main = fs.readFileSync(mainPath, 'utf8');
-  const renderer = fs.readFileSync(rendererPath, 'utf8');
-  assert.match(main, /function normalizeExternalUrl\(url\)/);
-  assert.match(main, /parsed\.protocol !== 'https:' && parsed\.protocol !== 'http:'/);
-  assert.match(main, /ipcMain\.handle\('open-external-url'/);
-  assert.match(main, /shell\.openExternal\(normalizedUrl\)/);
-  assert.match(renderer, /window\.electronAPI\.openExternalUrl\(url\)/);
+  const webSearchIpc = fs.readFileSync(webSearchIpcPath, 'utf8');
+  const news = fs.readFileSync(rendererNewsPath, 'utf8');
+  assert.match(main, /createWebSearchIpc\(\{ ipcMain, shell \}\)/);
+  assert.match(webSearchIpc, /function normalizeExternalUrl\(url\)/);
+  assert.match(webSearchIpc, /parsed\.protocol !== 'https:' && parsed\.protocol !== 'http:'/);
+  assert.match(webSearchIpc, /ipcMain\.handle\('open-external-url'/);
+  assert.match(webSearchIpc, /shell\.openExternal\(normalizedUrl\)/);
+  assert.match(news, /window\.electronAPI\.openExternalUrl\(url\)/);
 });

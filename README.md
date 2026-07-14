@@ -41,13 +41,23 @@ npm start
 
 ```
 desktop-robot/
-├── main.js          # Electron main process
-├── preload.js       # Preload script (secure bridge)
-├── renderer.js      # UI logic & IPC communication
-├── index.html       # Main window HTML
-├── style.css        # Styles
-├── package.json     # Dependencies
-└── assets/          # Images & resources
+├── main.js                 # Electron bootstrap, window, tray, menu, shortcuts
+├── preload.js              # Secure IPC bridge exposed to the renderer
+├── lib/                    # Main-process modules (chat, search, secrets, monitors)
+├── renderer.js             # Renderer bootstrap and cross-feature wiring
+├── renderer-*.js           # Renderer feature modules (chat, settings, news, effects, etc.)
+├── vendor/                 # Packaged browser runtime assets (Three.js wrapper)
+├── index.html              # Main window HTML
+├── style.css               # Styles
+├── test/                   # Node test runner regression tests
+└── assets/                 # Images & resources
+```
+
+### Validation
+
+```bash
+npm test
+npm run pack
 ```
 
 ### Tech Stack
@@ -89,13 +99,23 @@ npm start
 
 ```
 desktop-robot/
-├── main.js          # Electron 主进程
-├── preload.js       # 预加载脚本（安全桥接）
-├── renderer.js      # UI 逻辑与 IPC 通信
-├── index.html       # 主窗口 HTML
-├── style.css        # 样式
-├── package.json     # 依赖
-└── assets/          # 图片与资源
+├── main.js                 # Electron 启动、窗口、托盘、菜单、快捷键
+├── preload.js              # 暴露给渲染层的安全 IPC 桥
+├── lib/                    # 主进程模块（聊天、搜索、密钥、监控）
+├── renderer.js             # 渲染层启动与跨功能接线
+├── renderer-*.js           # 渲染层功能模块（聊天、设置、新闻、特效等）
+├── vendor/                 # 打包进应用的浏览器运行时资源（Three.js 包装）
+├── index.html              # 主窗口 HTML
+├── style.css               # 样式
+├── test/                   # Node test runner 回归测试
+└── assets/                 # 图片与资源
+```
+
+### 验证
+
+```bash
+npm test
+npm run pack
 ```
 
 ### 技术栈

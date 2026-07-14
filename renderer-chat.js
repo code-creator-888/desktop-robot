@@ -25,6 +25,24 @@
 
     let chatMessagesList = [];
     let currentSessionId = null;
+    let activeChatRequestId = '';
+    const cancelledChatRequestIds = new Set();
+
+    function createChatRequestId() {
+      return `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    function cancelActiveChatRequest() {
+      if (!activeChatRequestId) return;
+      cancelledChatRequestIds.add(activeChatRequestId);
+      window.electronAPI.cancelChat(activeChatRequestId).catch(() => {});
+      activeChatRequestId = '';
+      setThinking(false);
+    }
+
+    function isChatRequestCancelled(requestId) {
+      return !requestId || cancelledChatRequestIds.has(requestId) || activeChatRequestId !== requestId;
+    }
 
     function formatDirectSearchResults(question, results) {
       const lines = [`我联网查到这些结果，可先直接参考：`, `问题：${question}`];
@@ -62,7 +80,8 @@
       return String(fallbackQuery || '').trim();
     }
 
-    async function tryWebSearchAnswer(text, settings, searchingMsg) {
+    async function tryWebSearchAnswer(text, settings, searchingMsg, requestId = '') {
+      if (isChatRequestCancelled(requestId)) return { success: false, cancelled: true };
       const searchingIndex = chatMessagesList.length;
       chatMessagesList.push({ role: 'assistant', content: searchingMsg });
       renderChatMessages();
@@ -71,6 +90,12 @@
         query: text,
         topK: settings.webSearchTopK
       });
+
+      if (isChatRequestCancelled(requestId)) {
+        chatMessagesList.splice(searchingIndex, 1);
+        renderChatMessages();
+        return { success: false, cancelled: true };
+      }
 
       if (!searchResult.success) {
         chatMessagesList.splice(searchingIndex, 1);
@@ -82,6 +107,7 @@
         `${index + 1}. ${item.title}\n${item.snippet}\n${item.url}`
       ).join('\n\n');
       const summarizeResult = await window.electronAPI.chat({
+        requestId,
         baseUrl: settings.baseUrl,
         model: settings.model,
         apiKey: settings.apiKey,
@@ -91,6 +117,12 @@
           { role: 'user', content: `用户问题：${text}\n\n证据：\n${evidence}\n\n请给出简洁结论并列出来源链接。` }
         ]
       });
+
+      if (isChatRequestCancelled(requestId)) {
+        chatMessagesList.splice(searchingIndex, 1);
+        renderChatMessages();
+        return { success: false, cancelled: true };
+      }
 
       if (summarizeResult.success) {
         chatMessagesList[searchingIndex] = { role: 'assistant', content: summarizeResult.content };
@@ -115,7 +147,10 @@
     }
 
     function saveCurrentSession() {
-      if (!currentSessionId || chatMessagesList.length === 0) return;
+      if (!currentSessionId || chatMessagesList.length === 0) {
+        if (currentSessionId) localStorage.setItem(LAST_SESSION_KEY, currentSessionId);
+        return;
+      }
       let sessions = loadSessions();
       const idx = sessions.findIndex(s => s.id === currentSessionId);
       const preview = chatMessagesList[chatMessagesList.length - 1]?.content?.slice(0, 30) || '';
@@ -133,12 +168,16 @@
     }
 
     function startNewSession() {
+      cancelActiveChatRequest();
       saveCurrentSession();
       currentSessionId = Date.now();
       chatMessagesList = [];
+      localStorage.setItem(LAST_SESSION_KEY, currentSessionId);
     }
 
     function switchToSession(id) {
+      if (currentSessionId === id) return;
+      cancelActiveChatRequest();
       saveCurrentSession();
       const sessions = loadSessions();
       const session = sessions.find(s => s.id === id);
@@ -175,6 +214,7 @@
     }
 
     function closeChat() {
+      cancelActiveChatRequest();
       saveCurrentSession();
       setChatOpen(false);
       chatPanel.classList.add('hidden');
@@ -252,11 +292,15 @@
       saveSessions(sessions);
 
       if (currentSessionId === id) {
+        cancelActiveChatRequest();
         if (sessions.length > 0) {
-          switchToSession(sessions[0].id);
+          currentSessionId = sessions[0].id;
+          chatMessagesList = sessions[0].messages || [];
+          localStorage.setItem(LAST_SESSION_KEY, currentSessionId);
         } else {
-          startNewSession();
+          currentSessionId = Date.now();
           chatMessagesList = [];
+          localStorage.setItem(LAST_SESSION_KEY, currentSessionId);
         }
         renderChatMessages();
       }
@@ -336,11 +380,15 @@
       renderChatMessages();
 
       setThinking(true);
+      const requestId = createChatRequestId();
+      const requestSessionId = currentSessionId;
+      activeChatRequestId = requestId;
       render();
 
       try {
         if (settings.autoWebFallback && shouldPreferWebSearch(text)) {
-          const webFirstResult = await tryWebSearchAnswer(text, settings, '这是时效性问题，我先联网搜索一下...');
+          const webFirstResult = await tryWebSearchAnswer(text, settings, '这是时效性问题，我先联网搜索一下...', requestId);
+          if (webFirstResult.cancelled) return;
           if (webFirstResult.success) return;
         }
 
@@ -350,6 +398,7 @@
         ];
 
         const result = await window.electronAPI.chat({
+          requestId,
           baseUrl: settings.baseUrl,
           model: settings.model,
           apiKey: settings.apiKey,
@@ -357,12 +406,15 @@
           messages
         });
 
+        if (isChatRequestCancelled(requestId)) return;
+
         if (result.success) {
           const embeddedWebSearchQuery = settings.autoWebFallback
             ? extractEmbeddedWebSearchQuery(result.content, text)
             : '';
           if (embeddedWebSearchQuery) {
-            const toolCallResult = await tryWebSearchAnswer(embeddedWebSearchQuery, settings, '检测到联网搜索指令，正在执行...');
+            const toolCallResult = await tryWebSearchAnswer(embeddedWebSearchQuery, settings, '检测到联网搜索指令，正在执行...', requestId);
+            if (toolCallResult.cancelled) return;
             if (toolCallResult.success) return;
           }
           chatMessagesList.push({ role: 'assistant', content: result.content });
@@ -370,7 +422,8 @@
           if (!isChatOpen()) showSpeech(result.content, 4000);
         } else {
           if (settings.autoWebFallback) {
-            const fallbackResult = await tryWebSearchAnswer(text, settings, '主回答失败，正在联网搜索并总结...');
+            const fallbackResult = await tryWebSearchAnswer(text, settings, '主回答失败，正在联网搜索并总结...', requestId);
+            if (fallbackResult.cancelled) return;
             if (!fallbackResult.success) {
               const combinedError = `出错了：${result.error}；联网搜索失败：${fallbackResult.error}`;
               chatMessagesList.push({ role: 'assistant', content: combinedError });
@@ -391,9 +444,13 @@
           }
         }
       } finally {
+        cancelledChatRequestIds.delete(requestId);
+        if (activeChatRequestId === requestId) activeChatRequestId = '';
         setThinking(false);
-        saveCurrentSession();
-        renderSessionBar();
+        if (currentSessionId === requestSessionId) {
+          saveCurrentSession();
+          renderSessionBar();
+        }
         render();
       }
     }

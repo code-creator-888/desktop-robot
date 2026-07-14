@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const htmlPath = path.join(__dirname, '..', 'index.html');
 const rendererPath = path.join(__dirname, '..', 'renderer.js');
+const rendererTranslatePath = path.join(__dirname, '..', 'renderer-translate.js');
 const rendererSettingsPath = path.join(__dirname, '..', 'renderer-settings.js');
 const cssPath = path.join(__dirname, '..', 'style.css');
 
@@ -28,11 +29,12 @@ test('renderer supports translation model mode: same as chat or custom openai-co
   assert.match(settings, /function getTranslateModelConfig\(\)/);
   assert.match(settings, /const mode = settings\.translateModelMode === 'custom' \? 'custom' : 'same'/);
   assert.match(settings, /provider:\s*'openai'/);
-  assert.match(renderer, /const translateConfig = getTranslateModelConfig\(\)/);
+  assert.match(renderer, /getTranslateModelConfig,/);
+  assert.match(renderer, /translateController\.bindTranslateEvents\(\)/);
 });
 
 test('renderer enforces compact output format for english and chinese translation', () => {
-  const source = fs.readFileSync(rendererPath, 'utf8');
+  const source = fs.readFileSync(rendererTranslatePath, 'utf8');
   assert.match(source, /如果是英文或其他外语，严格输出：英文原词：中文翻译/);
   assert.match(source, /如果是中文，严格输出：中文词（带声调拼音）：中文解释/);
   assert.match(source, /英文示例：min：最小/);

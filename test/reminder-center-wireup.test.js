@@ -49,8 +49,8 @@ test('renderer has no snooze controls or snooze rule data', () => {
 });
 
 test('renderer ignores pet click when snooze bar is visible', () => {
-  const source = fs.readFileSync(rendererPath, 'utf8');
-  assert.match(source, /onRobotClick\(\(\)\s*=>\s*\{[\s\S]*if\s*\(!snoozeBar\.classList\.contains\('hidden'\)\)\s*return;/);
+  const source = fs.readFileSync(path.join(__dirname, '..', 'renderer-effects.js'), 'utf8');
+  assert.match(source, /function handleRobotClick\(\) \{[\s\S]*if\s*\(!snoozeBar\.classList\.contains\('hidden'\)\)\s*return;/);
 });
 
 test('renderer keeps current alert item for snooze confirm and reactivates reminder', () => {
