@@ -54,10 +54,35 @@ test('sendMessage prefers web search first for time-sensitive questions', () => 
 test('single-click news rotates through fetched headlines instead of choosing randomly', () => {
   const source = fs.readFileSync(rendererPath, 'utf8');
   assert.match(source, /let hotNewsRotationIndex = 0;/);
-  assert.match(source, /const idx = hotNewsRotationIndex % res\.headlines\.length;/);
-  assert.match(source, /const pick = res\.headlines\[idx\];/);
-  assert.match(source, /hotNewsRotationIndex = \(idx \+ 1\) % res\.headlines\.length;/);
+  assert.match(source, /const idx = hotNewsRotationIndex % cachedHotNewsHeadlines\.length;/);
+  assert.match(source, /const pick = cachedHotNewsHeadlines\[idx\];/);
+  assert.match(source, /hotNewsRotationIndex = \(idx \+ 1\) % cachedHotNewsHeadlines\.length;/);
   assert.doesNotMatch(source, /Math\.random\(\) \* res\.headlines\.length/);
+});
+
+test('news panel supports menu opening manual refresh and auto refresh', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert.match(source, /const newsPanel = document\.getElementById\('news-panel'\);/);
+  assert.match(source, /function openNewsPanel\(\)/);
+  assert.match(source, /function closeNewsPanel\(\)/);
+  assert.match(source, /async function refreshNewsPanel\(manual = false\)/);
+  assert.match(source, /const NEWS_AUTO_REFRESH_MS = 5 \* 60 \* 1000;/);
+  assert.match(source, /newsAutoRefreshTimer = setInterval/);
+  assert.match(source, /action === 'news-panel'/);
+  assert.match(main, /热点新闻/);
+  assert.match(main, /'news-panel'/);
+});
+
+test('news panel items are clickable and use title/url objects from hot news payload', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  assert.match(source, /cachedHotNewsHeadlines = res\.headlines/);
+  assert.match(source, /title: typeof item === 'string' \? item : String\(item\?\.title \|\| ''\)/);
+  assert.match(source, /url: typeof item === 'string' \? '' : String\(item\?\.url \|\| ''\)/);
+  assert.match(source, /const titleBtn = document\.createElement\('button'\);/);
+  assert.match(source, /titleBtn\.className = 'news-item-title';/);
+  assert.match(source, /titleBtn\.disabled = !item\.url;/);
+  assert.match(source, /openNewsItem\(item\.url\)/);
 });
 
 test('sendMessage intercepts embedded webSearch tool-call text instead of rendering it raw', () => {

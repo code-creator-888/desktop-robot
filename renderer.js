@@ -67,6 +67,11 @@ const reminderAddTime = document.getElementById('reminder-add-time');
 const reminderRuleType = document.getElementById('reminder-rule-type');
 const reminderAddBtn = document.getElementById('reminder-add-btn');
 const reminderListEl = document.getElementById('reminder-list');
+const newsPanel = document.getElementById('news-panel');
+const newsPanelClose = document.getElementById('news-panel-close');
+const newsPanelRefresh = document.getElementById('news-panel-refresh');
+const newsPanelStatus = document.getElementById('news-panel-status');
+const newsListEl = document.getElementById('news-list');
 const todoList = document.getElementById('todo-list');
 const todoListClose = document.getElementById('todo-list-close');
 const todoAddTitle = document.getElementById('todo-add-title');
@@ -87,12 +92,15 @@ let isSettingsOpen = false;
 let isMonitorOpen = false;
 let isThinking = false;
 let isReminderOpen = false;
+let isNewsOpen = false;
 let isTodoOpen = false;
 let isDblClickAnimating = false;
 let systemMonitorInterval = null;
 let portMonitorInterval = null;
 let systemStatsInFlight = false;
 let portStatsInFlight = false;
+let newsRefreshInFlight = false;
+let newsAutoRefreshTimer = null;
 let envConfig = { baseUrl: '', model: '', apiKey: '' };
 let robot3D = null;
 let robot3DResizeObserver = null;
@@ -492,6 +500,124 @@ function closeReminderCenter() {
   reminderController.closeReminderCenter();
 }
 
+const NEWS_AUTO_REFRESH_MS = 5 * 60 * 1000;
+let hotNewsRotationIndex = 0;
+let cachedHotNewsHeadlines = [];
+
+async function fetchHotNewsHeadlines() {
+  const res = await window.electronAPI.getHotNews(30);
+  if (res?.success && Array.isArray(res.headlines) && res.headlines.length > 0) {
+    cachedHotNewsHeadlines = res.headlines
+      .slice(0, 30)
+      .map((item) => ({
+        title: typeof item === 'string' ? item : String(item?.title || ''),
+        url: typeof item === 'string' ? '' : String(item?.url || '')
+      }))
+      .filter(item => item.title);
+    hotNewsRotationIndex %= cachedHotNewsHeadlines.length;
+  }
+  return res;
+}
+
+async function openNewsItem(url) {
+  const result = await window.electronAPI.openExternalUrl(url);
+  if (!result?.success) {
+    newsPanelStatus.textContent = result?.error || '打开新闻失败';
+  }
+}
+
+function renderNewsList(items, statusText) {
+  if (!newsListEl || !newsPanelStatus) return;
+  newsPanelStatus.textContent = statusText;
+  newsListEl.innerHTML = '';
+
+  if (!Array.isArray(items) || items.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'news-item-empty';
+    empty.textContent = '暂无新闻，请稍后刷新。';
+    newsListEl.appendChild(empty);
+    return;
+  }
+
+  items.forEach((item, index) => {
+    const row = document.createElement('div');
+    row.className = 'news-item';
+    appendTextElement(row, 'span', 'news-item-index', `${index + 1}.`);
+    const titleBtn = document.createElement('button');
+    titleBtn.className = 'news-item-title';
+    titleBtn.textContent = item.title;
+    titleBtn.disabled = !item.url;
+    if (item.url) {
+      titleBtn.title = '点击打开新闻';
+      titleBtn.addEventListener('click', () => {
+        openNewsItem(item.url);
+      });
+    }
+    row.appendChild(titleBtn);
+    newsListEl.appendChild(row);
+  });
+}
+
+async function refreshNewsPanel(manual = false) {
+  if (newsRefreshInFlight) return;
+  newsRefreshInFlight = true;
+  if (newsPanelRefresh) {
+    newsPanelRefresh.disabled = true;
+    newsPanelRefresh.textContent = manual ? '刷新中...' : '更新中...';
+  }
+  if (manual && newsPanelStatus) newsPanelStatus.textContent = '正在刷新最新新闻...';
+
+  try {
+    const res = await fetchHotNewsHeadlines();
+    if (!res.success || !cachedHotNewsHeadlines.length) {
+      renderNewsList([], `新闻更新失败：${res.error || '未知错误'}`);
+      return;
+    }
+    const updatedAt = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    renderNewsList(cachedHotNewsHeadlines, `已更新 ${updatedAt} · 自动每 5 分钟刷新`);
+  } catch {
+    renderNewsList([], '新闻更新失败，请稍后再试。');
+  } finally {
+    newsRefreshInFlight = false;
+    if (newsPanelRefresh) {
+      newsPanelRefresh.disabled = false;
+      newsPanelRefresh.textContent = '刷新';
+    }
+  }
+}
+
+function startNewsAutoRefresh() {
+  stopNewsAutoRefresh();
+  newsAutoRefreshTimer = setInterval(() => {
+    refreshNewsPanel(false);
+  }, NEWS_AUTO_REFRESH_MS);
+}
+
+function stopNewsAutoRefresh() {
+  if (newsAutoRefreshTimer) {
+    clearInterval(newsAutoRefreshTimer);
+    newsAutoRefreshTimer = null;
+  }
+}
+
+function openNewsPanel() {
+  isNewsOpen = true;
+  stopIdleAnimations();
+  newsPanel.classList.remove('hidden');
+  setMouseCapture(true);
+  renderNewsList(cachedHotNewsHeadlines, '正在加载新闻...');
+  refreshNewsPanel(false);
+  startNewsAutoRefresh();
+}
+
+function closeNewsPanel() {
+  isNewsOpen = false;
+  stopNewsAutoRefresh();
+  newsPanel.classList.add('hidden');
+  resumeIdleAnimationsIfAllowed();
+  updateMouseCapture();
+}
+
 todoController = window.RobotTodo.createTodoController({
   elements: {
     todoList,
@@ -829,6 +955,7 @@ function updateMouseCapture() {
     isSettingsOpen ||
     isMonitorOpen ||
     isReminderOpen ||
+    isNewsOpen ||
     isTodoOpen ||
     isDblClickAnimating ||
     !snoozeBar.classList.contains('hidden') ||
@@ -844,7 +971,7 @@ function handleRobotMouseMove(clientX, clientY) {
     resetPetPerspective();
     return;
   }
-  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isTodoOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || !speechBubble.classList.contains('hidden')) {
+  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isNewsOpen || isTodoOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || !speechBubble.classList.contains('hidden')) {
     resetPetPerspective();
     return;
   }
@@ -927,6 +1054,12 @@ window.electronAPI.onMenuAction((action) => {
     } else {
       openReminderCenter();
     }
+  } else if (action === 'news-panel') {
+    if (isNewsOpen) {
+      closeNewsPanel();
+    } else {
+      openNewsPanel();
+    }
   } else if (action === 'todo-list') {
     if (isTodoOpen) {
       closeTodoList();
@@ -953,6 +1086,11 @@ systemMonitorClose.addEventListener('click', closeSystemMonitor);
 systemMonitor.querySelector('.monitor-backdrop').addEventListener('click', closeSystemMonitor);
 portMonitorClose.addEventListener('click', closePortMonitor);
 portMonitor.querySelector('.monitor-backdrop').addEventListener('click', closePortMonitor);
+newsPanelClose.addEventListener('click', closeNewsPanel);
+newsPanelRefresh.addEventListener('click', () => {
+  refreshNewsPanel(true);
+});
+newsPanel.querySelector('.monitor-backdrop').addEventListener('click', closeNewsPanel);
 
 chatController.bindChatEvents();
 
@@ -966,6 +1104,7 @@ window.addEventListener('keydown', (e) => {
       if (!portMonitor.classList.contains('hidden')) closePortMonitor();
     }
     if (isReminderOpen) closeReminderCenter();
+    if (isNewsOpen) closeNewsPanel();
     if (isTodoOpen) closeTodoList();
   }
 });
@@ -1093,17 +1232,15 @@ function appendTranslateMessage(content) {
 window.electronAPI.onTranslateSelection(handleTranslateSelection);
 
 // --- Click interaction ---
-let hotNewsRotationIndex = 0;
-
 const SINGLE_CLICK_LINES = [
   async () => {
     try {
-      const res = await window.electronAPI.getHotNews(30);
-      if (!res.success || !res.headlines || res.headlines.length === 0) return '新闻获取失败，下次再试吧~';
-      const idx = hotNewsRotationIndex % res.headlines.length;
-      const pick = res.headlines[idx];
-      hotNewsRotationIndex = (idx + 1) % res.headlines.length;
-      return { text: `📰 ${pick}`, duration: 6000, type: 'news' };
+      const res = await fetchHotNewsHeadlines();
+      if (!res.success || cachedHotNewsHeadlines.length === 0) return '新闻获取失败，下次再试吧~';
+      const idx = hotNewsRotationIndex % cachedHotNewsHeadlines.length;
+      const pick = cachedHotNewsHeadlines[idx];
+      hotNewsRotationIndex = (idx + 1) % cachedHotNewsHeadlines.length;
+      return { text: `📰 ${pick.title}`, duration: 6000, type: 'news' };
     } catch { return '新闻获取失败，下次再试吧~'; }
   },
 ];
@@ -1346,7 +1483,7 @@ let idleYawnTimer = null;
 
 function isUserInteracting() {
   return isDragging || isChatOpen || isSettingsOpen || isMonitorOpen ||
-    isReminderOpen || isTodoOpen || isDblClickAnimating || isThinking ||
+    isReminderOpen || isNewsOpen || isTodoOpen || isDblClickAnimating || isThinking ||
     !snoozeBar.classList.contains('hidden') ||
     !speechBubble.classList.contains('hidden');
 }

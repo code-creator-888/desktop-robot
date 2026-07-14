@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getEnvApiKey: () => ipcRenderer.invoke('get-env-api-key'),
   getEnvConfig: () => ipcRenderer.invoke('get-env-config'),
   protectSecret: (secret) => ipcRenderer.invoke('protect-secret', secret),
+  openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
   getSystemStats: () => ipcRenderer.invoke('get-system-stats'),
   getPortStats: () => ipcRenderer.invoke('get-port-stats'),
   killProcess: (pid) => ipcRenderer.invoke('kill-process', pid),

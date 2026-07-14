@@ -81,6 +81,7 @@ test('preload exposes secret protection without exposing decrypt', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
   assert.match(source, /protectSecret:\s*\(secret\) => ipcRenderer\.invoke\('protect-secret', secret\)/);
   assert.match(source, /onSyncMouseCapture:\s*\(cb\) => ipcRenderer\.on\('sync-mouse-capture', \(\) => cb\(\)\)/);
+  assert.match(source, /openExternalUrl:\s*\(url\) => ipcRenderer\.invoke\('open-external-url', url\)/);
   assert.doesNotMatch(source, /decrypt|unprotect/i);
 });
 
@@ -189,4 +190,14 @@ test('context menu close re-syncs mouse capture and clipboard restore avoids sto
   assert.match(main, /win\.webContents\.send\('sync-mouse-capture'\)/);
   assert.match(main, /menu\.popup\(\{[\s\S]*callback:\s*\(\)\s*=>\s*\{[\s\S]*sync-mouse-capture/);
   assert.match(renderer, /window\.electronAPI\.onSyncMouseCapture\(\(\) => \{\s*updateMouseCapture\(\);/);
+});
+
+test('news links open externally through validated main-process shell calls', () => {
+  const main = fs.readFileSync(mainPath, 'utf8');
+  const renderer = fs.readFileSync(rendererPath, 'utf8');
+  assert.match(main, /function normalizeExternalUrl\(url\)/);
+  assert.match(main, /parsed\.protocol !== 'https:' && parsed\.protocol !== 'http:'/);
+  assert.match(main, /ipcMain\.handle\('open-external-url'/);
+  assert.match(main, /shell\.openExternal\(normalizedUrl\)/);
+  assert.match(renderer, /window\.electronAPI\.openExternalUrl\(url\)/);
 });

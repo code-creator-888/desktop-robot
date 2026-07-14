@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, Tray, Menu, ipcMain, nativeImage, clipboard, safeStorage } = require('electron');
+const { app, BrowserWindow, screen, Tray, Menu, ipcMain, nativeImage, clipboard, safeStorage, shell } = require('electron');
 const path = require('path');
 const http = require('http');
 const https = require('https');
@@ -161,6 +161,7 @@ async function buildRobotMenuAsync() {
       { label: '🙈 测试揉眼睛', click: () => win && win.webContents.send('menu-action', 'test-idle-rub-eyes') }
     ] },
     { type: 'separator' },
+    { label: '📰 热点新闻', click: () => win && win.webContents.send('menu-action', 'news-panel') },
     { label: '📊 系统监控', click: () => win && win.webContents.send('menu-action', 'system-monitor') },
     { label: '🔌 端口监控', click: () => win && win.webContents.send('menu-action', 'port-monitor') },
     { label: '⏰ 提醒中心', click: () => win && win.webContents.send('menu-action', 'reminder-center') },
@@ -499,9 +500,28 @@ ipcMain.handle('get-hot-news', async (_event, count = 3) => {
     const parsed = JSON.parse(json);
     const items = (parsed.data || []).slice(0, Math.min(count, 30));
     if (items.length === 0) return { success: false, error: 'No news items' };
-    return { success: true, headlines: items.map(i => i.Title) };
+    return {
+      success: true,
+      headlines: items.map(i => ({
+        title: i.Title,
+        url: normalizeExternalUrl(i.Url) || ''
+      }))
+    };
   } catch (err) {
     return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('open-external-url', async (_event, url) => {
+  const normalizedUrl = normalizeExternalUrl(url);
+  if (!normalizedUrl) {
+    return { success: false, error: '无效链接' };
+  }
+  try {
+    await shell.openExternal(normalizedUrl);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message || String(err) };
   }
 });
 
@@ -742,6 +762,16 @@ function normalizePid(pid) {
   const n = Number(pid);
   if (!Number.isInteger(n) || n <= 0 || n === process.pid) return null;
   return n;
+}
+
+function normalizeExternalUrl(url) {
+  try {
+    const parsed = new URL(String(url || '').trim());
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
 }
 
 async function scanListeningProcesses() {
