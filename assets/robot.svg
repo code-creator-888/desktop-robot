@@ -1,19 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
   <defs>
-    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#E8F4F8"/>
-      <stop offset="100%" stop-color="#D0E8F0"/>
+    <linearGradient id="pearlShell" x1="24" y1="10" x2="92" y2="106" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.52" stop-color="#E6FCFF"/>
+      <stop offset="1" stop-color="#8AA8BD"/>
     </linearGradient>
-    <linearGradient id="xpGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00D4FF"/>
-      <stop offset="100%" stop-color="#00B8D4"/>
+    <linearGradient id="glass" x1="33" y1="30" x2="86" y2="67" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1B3A55"/>
+      <stop offset="0.55" stop-color="#071426"/>
+      <stop offset="1" stop-color="#020711"/>
     </linearGradient>
-    <linearGradient id="eyeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#00E5FF"/>
-      <stop offset="100%" stop-color="#00B8D4"/>
+    <linearGradient id="cyanGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C9FFFF"/>
+      <stop offset="1" stop-color="#29D6FF"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+    <linearGradient id="violetGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F2D9FF"/>
+      <stop offset="1" stop-color="#8E6CFF"/>
+    </linearGradient>
+    <filter id="softDepth" x="-35%" y="-35%" width="170%" height="170%">
+      <feDropShadow dx="3" dy="7" stdDeviation="3" flood-color="#00111C" flood-opacity="0.38"/>
+    </filter>
+    <filter id="neon" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="thinGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="0.8" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -21,42 +37,47 @@
     </filter>
   </defs>
 
-  <!-- 天线 -->
-  <line x1="50" y1="14" x2="50" y2="6" stroke="#00B8D4" stroke-width="2.5" stroke-linecap="round"/>
-  <circle cx="50" cy="4" r="3.5" fill="#00E5FF" filter="url(#glow)"/>
-
-  <!-- 头部 -->
-  <rect x="18" y="16" width="64" height="46" rx="14" fill="url(#bodyGrad)" stroke="#B0D4E3" stroke-width="1.5"/>
-
-  <!-- 面罩 -->
-  <rect x="24" y="22" width="52" height="32" rx="10" fill="#1A2A3A" stroke="#00B8D4" stroke-width="1"/>
-
-  <!-- 眼睛 -->
-  <ellipse cx="36" cy="36" rx="9" ry="7" fill="#0D1B2A"/>
-  <ellipse cx="36" cy="36" rx="5" ry="4" fill="url(#eyeGrad)" filter="url(#glow)"/>
-  <circle cx="38" cy="34" r="1.8" fill="white"/>
-  <ellipse cx="64" cy="36" rx="9" ry="7" fill="#0D1B2A"/>
-  <ellipse cx="64" cy="36" rx="5" ry="4" fill="url(#eyeGrad)" filter="url(#glow)"/>
-  <circle cx="66" cy="34" r="1.8" fill="white"/>
-
-  <!-- 嘴巴 -->
-  <rect x="44" y="48" width="12" height="2.5" rx="1.2" fill="#00B8D4" filter="url(#glow)"/>
-
-  <!-- 身体 -->
-  <rect x="26" y="60" width="48" height="32" rx="10" fill="url(#bodyGrad)" stroke="#B0D4E3" stroke-width="1.5"/>
-
-  <!-- 小鹏 X Logo -->
-  <g transform="translate(50, 76)" filter="url(#glow)">
-    <path d="M-10,-6 L-3,0 L-10,6" fill="none" stroke="url(#xpGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M10,-6 L3,0 L10,6" fill="none" stroke="url(#xpGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    <line x1="-6" y1="0" x2="6" y2="0" stroke="url(#xpGrad)" stroke-width="2.5" stroke-linecap="round"/>
+  <ellipse cx="60" cy="107" rx="31" ry="7" fill="#00111C" opacity="0.24"/>
+  <g id="hologramRing" filter="url(#neon)" opacity="0.72">
+    <ellipse cx="60" cy="61" rx="48" ry="33" fill="none" stroke="#68F7FF" stroke-width="2.8" stroke-dasharray="12 8" transform="rotate(-18 60 61)"/>
+    <ellipse cx="60" cy="60" rx="35" ry="23" fill="none" stroke="#9A7DFF" stroke-width="1.7" opacity="0.75" transform="rotate(22 60 60)"/>
   </g>
 
-  <!-- 胸口指示灯 -->
-  <circle cx="38" cy="70" r="2" fill="#00E5FF" filter="url(#glow)"/>
-  <circle cx="62" cy="70" r="2" fill="#00E5FF" filter="url(#glow)"/>
+  <g id="prismShell" filter="url(#softDepth)">
+    <path d="M24 47 L12 71 L30 82 L40 57 Z" fill="#5D6AFF" opacity="0.38" stroke="#A8F8FF" stroke-width="1.4"/>
+    <path d="M96 47 L108 71 L90 82 L80 57 Z" fill="#5D6AFF" opacity="0.38" stroke="#A8F8FF" stroke-width="1.4"/>
 
-  <!-- 手臂 -->
-  <rect x="8" y="66" width="14" height="8" rx="4" fill="#C0D8E8" stroke="#A0C4D8" stroke-width="1"/>
-  <rect x="78" y="66" width="14" height="8" rx="4" fill="#C0D8E8" stroke="#A0C4D8" stroke-width="1"/>
+    <path d="M33 20 L75 17 Q91 17 96 31 L91 63 Q89 75 75 78 L39 76 Q27 75 24 63 L23 36 Q23 24 33 20 Z" fill="url(#pearlShell)" stroke="#94C6D9" stroke-width="2"/>
+    <path d="M75 17 Q91 17 96 31 L91 63 Q89 75 75 78 L82 45 Z" fill="#A5C6D6" opacity="0.58"/>
+
+    <path d="M36 31 L75 29 Q85 29 87 38 L84 56 Q82 64 72 65 L40 63 Q31 62 30 54 L29 40 Q29 32 36 31 Z" fill="url(#glass)" stroke="#59F1FF" stroke-width="2"/>
+    <path d="M39 35 L72 33" stroke="#D3FFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.38"/>
+    <path d="M36 39 L84 38" stroke="#59F1FF" stroke-width="1" opacity="0.42" filter="url(#thinGlow)"/>
+
+    <g filter="url(#neon)">
+      <ellipse cx="47" cy="48" rx="8.5" ry="4.8" fill="url(#cyanGlow)"/>
+      <ellipse cx="69" cy="48" rx="8.5" ry="4.8" fill="url(#cyanGlow)"/>
+      <rect x="51" y="58" width="16" height="3.8" rx="1.9" fill="url(#violetGlow)"/>
+    </g>
+
+    <path d="M40 75 L75 76 Q86 77 88 88 L84 101 L35 100 L31 87 Q31 77 40 75 Z" fill="url(#pearlShell)" stroke="#94C6D9" stroke-width="2"/>
+    <path d="M75 76 Q86 77 88 88 L84 101 L72 95 L72 81 Z" fill="#8FAFC1" opacity="0.62"/>
+    <rect x="45" y="82" width="30" height="15" rx="7" fill="#06101D" stroke="#A68DFF" stroke-width="2"/>
+    <circle id="gravityCore" cx="60" cy="89.5" r="5.8" fill="url(#violetGlow)" filter="url(#neon)"/>
+
+    <g id="thrusterLeft">
+      <path d="M23 80 L36 85 L31 101 L18 94 Z" fill="#263445" stroke="#6CF4FF" stroke-width="1.2"/>
+      <path d="M22 96 Q27 107 31 96" fill="url(#cyanGlow)" opacity="0.86" filter="url(#neon)"/>
+    </g>
+    <g id="thrusterRight">
+      <path d="M97 80 L84 85 L89 101 L102 94 Z" fill="#263445" stroke="#6CF4FF" stroke-width="1.2"/>
+      <path d="M98 96 Q93 107 89 96" fill="url(#cyanGlow)" opacity="0.86" filter="url(#neon)"/>
+    </g>
+
+    <path d="M44 100 L31 106 L47 110 L54 102 Z" fill="#3A4A5D" stroke="#1C2A3A" stroke-width="1.2"/>
+    <path d="M76 100 L89 106 L73 110 L66 102 Z" fill="#3A4A5D" stroke="#1C2A3A" stroke-width="1.2"/>
+
+    <path d="M63 18 L69 7" stroke="#7DF9FF" stroke-width="3" stroke-linecap="round" filter="url(#thinGlow)"/>
+    <circle cx="70" cy="6" r="4.5" fill="url(#cyanGlow)" filter="url(#neon)"/>
+  </g>
 </svg>

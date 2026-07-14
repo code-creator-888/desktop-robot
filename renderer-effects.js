@@ -16,49 +16,35 @@
 
 
 const DOUBLE_CLICK_LINES = [
-  () => '（转圈圈）主人！我最喜欢你了！♥',
-  () => '（发射爱心光线）主人你是最棒的！',
-  () => '（害羞地捂脸）人家才不是特别喜欢你呢……才不是……',
-  () => '（兴奋地跳起来）主人终于来陪我玩了！！',
+  () => '（全息校准）收到双击信号，已进入高亮模式。',
+  () => '（重力核心点亮）主人，我在这里。',
+  () => '（环形光轨展开）双击指令确认，开始陪伴巡航。',
   () => {
     const h = new Date().getHours();
-    if (h < 6) return '（揉眼睛）主人还没睡吗……心疼你……';
-    if (h < 12) return '（元气满满）早上好！今天也要加油哦！☀';
-    if (h < 14) return '（摸摸肚子）主人吃过午饭了吗？别饿着！';
-    if (h < 18) return '（伸懒腰）下午了呢，要不要休息一下？';
-    if (h < 22) return '（靠过来）晚上陪主人加班，我最强！';
-    return '（打哈欠）主人该睡觉啦，熬夜对身体不好哦~';
+    if (h < 6) return '（低亮护眼模式）夜深了，我陪你安静一点。';
+    if (h < 12) return '（晨间光谱上线）早上好，今天的状态很稳。';
+    if (h < 18) return '（能量环同步）下午任务继续，我帮你盯着。';
+    if (h < 22) return '（夜航灯开启）晚上好，工作台已待命。';
+    return '（休眠光环闪烁）该慢慢收尾了，主人。';
   },
   async () => {
     const stats = await window.electronAPI.getSystemStats().catch(() => null);
-    if (!stats || stats.error) return '（竖起天线）系统一切正常！嗯……大概吧。';
+    if (!stats || stats.error) return '（传感器自检）本机状态暂时读不到，但我在线。';
     const cpu = parseInt(stats.cpu);
-    if (cpu > 80) return `（冒烟）CPU ${stats.cpu}！！主人快关几个程序吧，我要热化了！🔥`;
-    if (cpu > 50) return `（擦汗）CPU ${stats.cpu}，还行还行，我还能撑住！`;
-    return `（得意）CPU 才 ${stats.cpu}，多亏我帮你监控着呢~`;
+    if (cpu > 80) return `（核心升温）CPU ${stats.cpu}！！建议收束几个进程。`;
+    if (cpu > 50) return `（散热环启动）CPU ${stats.cpu}，还行还行，负载中等。`;
+    return `（状态灯常亮）CPU 才 ${stats.cpu}，运行很轻。`;
   },
   () => {
-    const moods = ['超开心', '有点小激动', '感动得不行', '幸福到冒泡', '开心到原地起飞'];
-    const actions = ['转圈圈', '蹦蹦跳跳', '挥舞小手', '闪亮登场', '撒花花'];
-    return `（${actions[Math.floor(Math.random() * actions.length)]}）主人连点我！我${moods[Math.floor(Math.random() * moods.length)]}！♥`;
+    const modes = ['全息扫描', '轨道同步', '重力脉冲', '量子眨眼', '推进器点火'];
+    return `（${modes[Math.floor(Math.random() * modes.length)]}）双击已确认。`;
   },
-  () => {
-    const picks = [
-      '主人是不是想我了？我一直在哦！',
-      '双击！这是爱的信号对吧！对吧！',
-      '（脸红）主人不要一直戳我啦……虽然也不讨厌……',
-      '收到主人的双倍爱意！电量充满！⚡',
-      '嘿嘿，被主人关注的感觉真好~',
-    ];
-    return picks[Math.floor(Math.random() * picks.length)];
-  },
-  () => '（踩着节拍）双击收到！开始跳舞模式！🎵',
 ];
 const DOUBLE_CLICK_WINDOW_MS = 450;
 const DOUBLE_CLICK_EFFECTS = [
-  { className: 'dbl-glitch', durationMs: 920, particles: 'sparkles', glowColor: 'rgba(34,211,238,0.65)' },
-  { className: 'dbl-stomp',  durationMs: 1050, particles: 'mixed',   glowColor: 'rgba(251,146,60,0.62)', impact: true },
-  { className: 'dbl-disco',  durationMs: 1200, particles: 'music',   glowColor: 'rgba(168,85,247,0.68)' },
+  { className: 'dbl-holo-scan', durationMs: 980, particles: 'hologram', glowColor: 'rgba(104,247,255,0.72)' },
+  { className: 'dbl-gravity-pulse', durationMs: 1120, particles: 'orbit', glowColor: 'rgba(166,141,255,0.72)', impact: true },
+  { className: 'dbl-orbit-flare', durationMs: 1260, particles: 'photons', glowColor: 'rgba(125,249,255,0.68)' },
 ];
 let doubleClickEffectIndex = 0;
 
@@ -144,10 +130,9 @@ function handleRobotClick() {
       spawnGlowRing(effect.glowColor);
 
       // Particles
-      if (effect.particles === 'hearts') spawnHearts(7);
-      else if (effect.particles === 'sparkles') spawnSparkles(10);
-      else if (effect.particles === 'music') spawnMusicNotes(9);
-      else if (effect.particles === 'mixed') { spawnHearts(4); spawnSparkles(6); }
+      if (effect.particles === 'hologram') spawnHologramShards(12);
+      else if (effect.particles === 'orbit') spawnOrbitDots(10);
+      else if (effect.particles === 'photons') spawnPhotonSparks(14);
 
       // Impact ring for bounce
       if (effect.impact) {
@@ -165,70 +150,56 @@ function handleRobotClick() {
   }, DOUBLE_CLICK_WINDOW_MS);
 }
 
-function spawnHearts(count = 5) {
+function spawnHologramShards(count = 10) {
   for (let i = 0; i < count; i++) {
-    const heart = document.createElement('div');
-    heart.className = 'floating-heart';
-    heart.textContent = ['♥', '♡', '❤'][Math.floor(Math.random() * 3)];
-    const offsetX = (Math.random() - 0.5) * 80;
-    heart.style.setProperty('--hx', offsetX + 'px');
-    heart.style.left = '50%';
-    heart.style.bottom = '70px';
-    heart.style.animationDelay = (i * 0.08) + 's';
-    heart.style.fontSize = (14 + Math.random() * 10) + 'px';
-    container.appendChild(heart);
-    heart.addEventListener('animationend', () => heart.remove(), { once: true });
+    const shard = document.createElement('div');
+    shard.className = 'hologram-shard';
+    shard.style.left = '50%';
+    shard.style.bottom = '52px';
+    shard.style.animationDelay = (i * 0.025) + 's';
+
+    const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.35;
+    const dist = 38 + Math.random() * 42;
+    shard.style.setProperty('--sx', Math.cos(angle) * dist + 'px');
+    shard.style.setProperty('--sy', Math.sin(angle) * dist - 12 + 'px');
+    shard.style.setProperty('--sr', (Math.random() * 160 - 80).toFixed(1) + 'deg');
+    shard.style.setProperty('--dur', (0.52 + Math.random() * 0.28).toFixed(2) + 's');
+
+    container.appendChild(shard);
+    shard.addEventListener('animationend', () => shard.remove(), { once: true });
   }
 }
 
-function spawnSparkles(count = 10) {
-  const chars = ['✦', '✧', '⋆', '★', '✶', '✸'];
-  const colors = ['#FFD700', '#FF69B4', '#00E5FF', '#FF6B6B', '#A78BFA', '#34D399'];
+function spawnOrbitDots(count = 8) {
+  for (let i = 0; i < count; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'orbit-dot';
+    dot.style.left = '50%';
+    dot.style.bottom = '50px';
+    dot.style.animationDelay = (i * 0.04) + 's';
+    dot.style.setProperty('--orbit-angle', ((360 / count) * i).toFixed(1) + 'deg');
+    dot.style.setProperty('--orbit-radius', (34 + Math.random() * 22).toFixed(1) + 'px');
+    container.appendChild(dot);
+    dot.addEventListener('animationend', () => dot.remove(), { once: true });
+  }
+}
+
+function spawnPhotonSparks(count = 12) {
   for (let i = 0; i < count; i++) {
     const spark = document.createElement('div');
-    spark.className = 'sparkle-particle';
-    spark.textContent = chars[Math.floor(Math.random() * chars.length)];
-    spark.style.color = colors[Math.floor(Math.random() * colors.length)];
-    spark.style.fontSize = (8 + Math.random() * 14) + 'px';
+    spark.className = 'photon-spark';
     spark.style.left = '50%';
-    spark.style.bottom = '50px';
+    spark.style.bottom = '52px';
+    spark.style.animationDelay = (i * 0.022) + 's';
 
-    const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.5;
-    const dist = 30 + Math.random() * 40;
-    const tx = Math.cos(angle) * dist;
-    const ty = Math.sin(angle) * dist;
-    const tx2 = tx * 1.5;
-    const ty2 = ty - 20;
-    spark.style.setProperty('--tx', tx + 'px');
-    spark.style.setProperty('--ty', ty + 'px');
-    spark.style.setProperty('--tx2', tx2 + 'px');
-    spark.style.setProperty('--ty2', ty2 + 'px');
-    spark.style.setProperty('--dur', (0.5 + Math.random() * 0.4) + 's');
-    spark.style.animationDelay = (i * 0.03) + 's';
-    spark.style.textShadow = `0 0 6px ${spark.style.color}`;
+    const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.45;
+    const dist = 34 + Math.random() * 52;
+    spark.style.setProperty('--px', Math.cos(angle) * dist + 'px');
+    spark.style.setProperty('--py', Math.sin(angle) * dist - 18 + 'px');
+    spark.style.setProperty('--ps', (0.75 + Math.random() * 0.8).toFixed(2));
 
     container.appendChild(spark);
     spark.addEventListener('animationend', () => spark.remove(), { once: true });
-  }
-}
-
-function spawnMusicNotes(count = 8) {
-  const notes = ['♪', '♫', '♩', '♬'];
-  const colors = ['#8B5CF6', '#EC4899', '#22D3EE', '#F59E0B', '#34D399'];
-  for (let i = 0; i < count; i++) {
-    const note = document.createElement('div');
-    note.className = 'music-note-particle';
-    note.textContent = notes[Math.floor(Math.random() * notes.length)];
-    note.style.color = colors[Math.floor(Math.random() * colors.length)];
-    note.style.fontSize = (16 + Math.random() * 10) + 'px';
-    note.style.left = '50%';
-    note.style.bottom = '52px';
-    note.style.animationDelay = (i * 0.04) + 's';
-    note.style.setProperty('--note-x', ((Math.random() - 0.5) * 120) + 'px');
-    note.style.setProperty('--note-top', (70 + Math.random() * 60) + 'px');
-    note.style.textShadow = `0 0 8px ${note.style.color}`;
-    container.appendChild(note);
-    note.addEventListener('animationend', () => note.remove(), { once: true });
   }
 }
 

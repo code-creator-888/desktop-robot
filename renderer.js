@@ -157,7 +157,7 @@ function render() {
   });
   currentPetSrc = pet.src;
 
-  const dblEffect = ['dbl-glitch', 'dbl-stomp', 'dbl-disco'].find(c => petEl.classList.contains(c));
+  const dblEffect = ['dbl-holo-scan', 'dbl-gravity-pulse', 'dbl-orbit-flare'].find(c => petEl.classList.contains(c));
   const idleActionClass = ['yawn-yawn', 'yawn-stretch', 'yawn-rub-eyes'].find(c => petEl.classList.contains(c));
   petEl.className = '';
   if (dblEffect) petEl.classList.add(dblEffect);
