@@ -20,6 +20,7 @@ const systemMonitorPath = path.join(__dirname, '..', 'lib', 'system-monitor.js')
 const webSearchIpcPath = path.join(__dirname, '..', 'lib', 'web-search-ipc.js');
 const indexPath = path.join(__dirname, '..', 'index.html');
 const packagePath = path.join(__dirname, '..', 'package.json');
+const { normalizeChatPayload } = require(chatIpcPath);
 
 test('renderer does not inject dynamic templates with innerHTML', () => {
   const source = fs.readFileSync(rendererPath, 'utf8');
@@ -57,12 +58,28 @@ test('chat IPC validates base URL protocol and payload shape', () => {
   const source = fs.readFileSync(chatIpcPath, 'utf8');
   assert.match(source, /new URL\(baseUrl\)/);
   assert.match(source, /Unsupported base URL protocol/);
-  assert.match(source, /HTTP base URL is only allowed for local debugging/);
+  assert.doesNotMatch(source, /HTTP base URL is only allowed for local debugging/);
+  assert.doesNotMatch(source, /function isLocalDebugHttpHost\(hostname\)/);
   assert.match(source, /messages\.slice\(-30\)/);
   assert.match(source, /content: String\(message\?\.content \|\| ''\)\.slice\(0, 20000\)/);
   assert.match(source, /requestId: String\(payload\.requestId \|\| ''\)\.slice\(0, 80\)/);
   assert.match(source, /const activeChatRequests = new Map\(\)/);
   assert.match(source, /ipcMain\.handle\('cancel-chat'/);
+});
+
+test('chat IPC allows HTTP and HTTPS model endpoints', () => {
+  const basePayload = {
+    model: 'local-model',
+    apiKey: 'x',
+    messages: [{ role: 'user', content: 'hello' }]
+  };
+
+  assert.equal(normalizeChatPayload({ ...basePayload, baseUrl: 'http://localhost:11434/v1' }).error, undefined);
+  assert.equal(normalizeChatPayload({ ...basePayload, baseUrl: 'http://127.0.0.1:11434/v1' }).error, undefined);
+  assert.equal(normalizeChatPayload({ ...basePayload, baseUrl: 'http://192.168.1.20:11434/v1' }).error, undefined);
+  assert.equal(normalizeChatPayload({ ...basePayload, baseUrl: 'http://example.com/v1' }).error, undefined);
+  assert.equal(normalizeChatPayload({ ...basePayload, baseUrl: 'https://api.example.com/v1' }).error, undefined);
+  assert.equal(normalizeChatPayload({ ...basePayload, baseUrl: 'file:///tmp/model' }).error, 'Unsupported base URL protocol');
 });
 
 test('browser window uses hardened web preferences', () => {
@@ -80,6 +97,14 @@ test('packaged app includes vendored three runtime asset', () => {
   assert.match(html, /vendor\/three-global\.js/);
   assert.ok(pkg.build.files.includes('vendor/**'));
   assert.ok(pkg.build.files.includes('lib/**'));
+});
+
+test('README does not advertise removed chat web-search fallback', () => {
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+  assert.doesNotMatch(readme, /Web Fallback/i);
+  assert.doesNotMatch(readme, /联网回退/);
+  assert.doesNotMatch(readme, /primary model call fails, automatically search the web/i);
+  assert.doesNotMatch(readme, /主模型调用失败时，自动网页搜索/);
 });
 
 test('kill-process uses process.kill instead of shell kill commands', () => {
@@ -132,6 +157,7 @@ test('preload exposes secret protection without exposing decrypt', () => {
   assert.match(source, /cancelChat:\s*\(requestId\) => ipcRenderer\.invoke\('cancel-chat', requestId\)/);
   assert.match(source, /onSyncMouseCapture:\s*\(cb\) => ipcRenderer\.on\('sync-mouse-capture', \(\) => cb\(\)\)/);
   assert.match(source, /openExternalUrl:\s*\(url\) => ipcRenderer\.invoke\('open-external-url', url\)/);
+  assert.doesNotMatch(source, /webSearch:\s*\(|web-search/);
   assert.doesNotMatch(source, /decrypt|unprotect/i);
 });
 
@@ -285,4 +311,16 @@ test('news links open externally through validated main-process shell calls', ()
   assert.match(webSearchIpc, /ipcMain\.handle\('open-external-url'/);
   assert.match(webSearchIpc, /shell\.openExternal\(normalizedUrl\)/);
   assert.match(news, /window\.electronAPI\.openExternalUrl\(url\)/);
+});
+
+test('chat web search IPC is not registered or exposed', () => {
+  const main = fs.readFileSync(mainPath, 'utf8');
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
+  const webSearchIpc = fs.readFileSync(webSearchIpcPath, 'utf8');
+  const chat = fs.readFileSync(rendererChatPath, 'utf8');
+
+  assert.doesNotMatch(main, /ipcMain\.handle\('web-search'/);
+  assert.doesNotMatch(preload, /webSearch|web-search/);
+  assert.doesNotMatch(webSearchIpc, /ipcMain\.handle\('web-search'|normalizeWebSearchPayload|parseDuckDuckGoResults|parseBingResults|parseSoResults/);
+  assert.doesNotMatch(chat, /window\.electronAPI\.webSearch|autoWebFallback|webSearchTopK/);
 });

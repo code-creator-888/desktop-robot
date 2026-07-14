@@ -26,6 +26,7 @@ const snoozeBar = document.getElementById('snooze-bar');
 const snoozeSelect = document.getElementById('snooze-select');
 const snoozeBtn = document.getElementById('snooze-btn');
 const chatPanel = document.getElementById('chat-panel');
+const chatBackdrop = document.getElementById('chat-backdrop');
 const chatMessages = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
 const chatSend = document.getElementById('chat-send');
@@ -33,8 +34,6 @@ const chatClose = document.getElementById('chat-close');
 const settingsModal = document.getElementById('settings-modal');
 const settingPetName = document.getElementById('setting-pet-name');
 const settingSystemPrompt = document.getElementById('setting-system-prompt');
-const settingAutoWebFallback = document.getElementById('setting-auto-web-fallback');
-const settingWebSearchTopK = document.getElementById('setting-web-search-topk');
 const settingTranslateModelMode = document.getElementById('setting-translate-model-mode');
 const settingTranslateCustom = document.getElementById('setting-translate-custom');
 const settingTranslateBaseUrl = document.getElementById('setting-translate-baseurl');
@@ -230,8 +229,6 @@ settingsController = window.RobotSettings.createSettingsController({
     settingsModal,
     settingPetName,
     settingSystemPrompt,
-    settingAutoWebFallback,
-    settingWebSearchTopK,
     settingTranslateModelMode,
     settingTranslateCustom,
     settingTranslateBaseUrl,
@@ -392,6 +389,7 @@ function closeTodoList() {
 chatController = window.RobotChat.createChatController({
   elements: {
     chatPanel,
+    chatBackdrop,
     chatMessages,
     chatInput,
     chatSend,
@@ -651,6 +649,20 @@ window.electronAPI.onIgnoreMouseEventsChanged((ignore) => {
 
 window.electronAPI.onSyncMouseCapture(() => {
   updateMouseCapture();
+});
+
+function isScreenPointInsideElement(el, screenX, screenY) {
+  if (!el || el.classList.contains('hidden')) return false;
+  const rect = el.getBoundingClientRect();
+  const localX = screenX - window.screenX;
+  const localY = screenY - window.screenY;
+  return localX >= rect.left && localX <= rect.right && localY >= rect.top && localY <= rect.bottom;
+}
+
+window.electronAPI.onGlobalMouseDown((point) => {
+  if (!isChatOpen) return;
+  if (isScreenPointInsideElement(chatPanel, point.x, point.y)) return;
+  closeChat();
 });
 
 function resetPetPerspective() {

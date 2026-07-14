@@ -12,7 +12,7 @@ const cssPath = path.join(__dirname, '..', 'style.css');
 test('settings panel includes translate model mode and custom config inputs', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
   assert.match(html, />聊天模型</);
-  assert.match(html, /这里配置聊天与联网总结使用的主模型/);
+  assert.match(html, /这里配置聊天使用的主模型/);
   assert.match(html, />翻译模型</);
   assert.match(html, /只影响划词翻译，不影响聊天回复/);
   assert.match(html, />通用设置</);
@@ -21,6 +21,17 @@ test('settings panel includes translate model mode and custom config inputs', ()
   assert.match(html, /id="setting-translate-baseurl"/);
   assert.match(html, /id="setting-translate-model"/);
   assert.match(html, /id="setting-translate-apikey"/);
+});
+
+test('settings panel no longer exposes chat web fallback controls', () => {
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const renderer = fs.readFileSync(rendererPath, 'utf8');
+  const settings = fs.readFileSync(rendererSettingsPath, 'utf8');
+
+  assert.doesNotMatch(html, /失败时自动联网搜索|联网结果数量|联网回退|联网总结/);
+  assert.doesNotMatch(html, /setting-auto-web-fallback|setting-web-search-topk/);
+  assert.doesNotMatch(renderer, /settingAutoWebFallback|settingWebSearchTopK/);
+  assert.doesNotMatch(settings, /autoWebFallback|webSearchTopK|clampWebSearchTopK|DEFAULT_WEB_SEARCH_TOPK/);
 });
 
 test('renderer supports translation model mode: same as chat or custom openai-compatible', () => {

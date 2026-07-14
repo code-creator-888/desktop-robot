@@ -38,10 +38,9 @@ test('sendMessage keeps thinking state until fallback pipeline ends', () => {
   assert.equal(resets.length, 1, 'should reset thinking=false exactly once');
 });
 
-test('chat cancellation stops awaited pipelines and session writes', () => {
+test('chat cancellation stops model requests and session writes', () => {
   const source = fs.readFileSync(rendererChatPath, 'utf8');
   const sendBody = extractFunctionBody(source, 'async function sendMessage() {');
-  const searchBody = extractFunctionBody(source, "async function tryWebSearchAnswer(text, settings, searchingMsg, requestId = '') {");
 
   assert.match(source, /const cancelledChatRequestIds = new Set\(\);/);
   assert.match(source, /function isChatRequestCancelled\(requestId\)/);
@@ -49,28 +48,22 @@ test('chat cancellation stops awaited pipelines and session writes', () => {
   assert.match(source, /function switchToSession\(id\) \{\s*if \(currentSessionId === id\) return;\s*cancelActiveChatRequest\(\);/);
   assert.match(source, /const requestSessionId = currentSessionId;/);
   assert.match(sendBody, /if \(isChatRequestCancelled\(requestId\)\) return;/);
-  assert.match(sendBody, /if \(webFirstResult\.cancelled\) return;/);
-  assert.match(sendBody, /if \(toolCallResult\.cancelled\) return;/);
-  assert.match(sendBody, /if \(fallbackResult\.cancelled\) return;/);
+  assert.doesNotMatch(sendBody, /webFirstResult|toolCallResult|fallbackResult/);
   assert.match(sendBody, /if \(currentSessionId === requestSessionId\) \{\s*saveCurrentSession\(\);\s*renderSessionBar\(\);\s*\}/);
-  assert.match(searchBody, /if \(isChatRequestCancelled\(requestId\)\) return \{ success: false, cancelled: true \};/);
-  assert.match(searchBody, /chatMessagesList\.splice\(searchingIndex, 1\);\s*renderChatMessages\(\);\s*return \{ success: false, cancelled: true \};/);
 });
 
-test('sendMessage shows direct search results when summarize step fails', () => {
+test('sendMessage no longer runs chat web search fallback paths', () => {
   const source = fs.readFileSync(rendererChatPath, 'utf8');
-  assert.match(source, /function formatDirectSearchResults\(question, results\)/);
-  assert.match(source, /async function tryWebSearchAnswer\(text, settings, searchingMsg, requestId = ''\)/);
-  assert.match(source, /const directResults = formatDirectSearchResults\(text, searchResult\.results \|\| \[\]\);/);
-  assert.match(source, /联网搜索成功，但自动总结失败，已直接展示结果/);
-});
+  const sendBody = extractFunctionBody(source, 'async function sendMessage() {');
 
-test('sendMessage prefers web search first for time-sensitive questions', () => {
-  const source = fs.readFileSync(rendererChatPath, 'utf8');
-  assert.match(source, /function shouldPreferWebSearch\(text\)/);
-  assert.match(source, /if \(settings\.autoWebFallback && shouldPreferWebSearch\(text\)\) \{/);
-  assert.match(source, /这是时效性问题，我先联网搜索一下\.\.\./);
-  assert.match(source, /月销量/);
+  assert.doesNotMatch(source, /function formatDirectSearchResults\(/);
+  assert.doesNotMatch(source, /function shouldPreferWebSearch\(/);
+  assert.doesNotMatch(source, /function extractEmbeddedWebSearchQuery\(/);
+  assert.doesNotMatch(source, /async function tryWebSearchAnswer\(/);
+  assert.doesNotMatch(source, /window\.electronAPI\.webSearch/);
+  assert.doesNotMatch(source, /autoWebFallback|webSearchTopK|functions\.webSearch|联网搜索/);
+  assert.match(sendBody, /const result = await window\.electronAPI\.chat\(\{/);
+  assert.match(sendBody, /const errMsg = '出错了：' \+ result\.error;/);
 });
 
 test('chat requests carry request ids and can be cancelled on close', () => {
@@ -122,18 +115,43 @@ test('news panel items are clickable and use title/url objects from hot news pay
   assert.match(source, /openNewsItem\(item\.url\)/);
 });
 
-test('sendMessage intercepts embedded webSearch tool-call text instead of rendering it raw', () => {
+test('sendMessage renders model replies directly without webSearch tool-call interception', () => {
   const source = fs.readFileSync(rendererChatPath, 'utf8');
-  assert.match(source, /function extractEmbeddedWebSearchQuery\(content, fallbackQuery\)/);
-  assert.match(source, /if \(!\/functions\\\.webSearch\/i\.test\(text\)\) return '';/);
-  assert.match(source, /const embeddedWebSearchQuery = settings\.autoWebFallback/);
-  assert.match(source, /检测到联网搜索指令，正在执行\.\.\./);
+  const sendBody = extractFunctionBody(source, 'async function sendMessage() {');
+
+  assert.doesNotMatch(source, /extractEmbeddedWebSearchQuery/);
+  assert.doesNotMatch(sendBody, /functions\.webSearch|embeddedWebSearchQuery|检测到联网搜索指令/);
+  assert.match(sendBody, /chatMessagesList\.push\(\{ role: 'assistant', content: result\.content \}\);/);
 });
 
 test('openChat enables mouse capture to keep robot clickable after outside clicks', () => {
   const source = fs.readFileSync(rendererChatPath, 'utf8');
   const body = extractFunctionBody(source, 'function openChat() {');
   assert.match(body, /setMouseCapture\(true\)/, 'openChat should enable mouse capture');
+});
+
+test('chat closes from outside screen clicks like news panel', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const renderer = fs.readFileSync(rendererPath, 'utf8');
+  const chat = fs.readFileSync(rendererChatPath, 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+
+  assert.match(html, /id="chat-backdrop" class="hidden"/);
+  assert.match(renderer, /const chatBackdrop = document\.getElementById\('chat-backdrop'\);/);
+  assert.match(renderer, /function isScreenPointInsideElement\(el, screenX, screenY\)/);
+  assert.match(renderer, /window\.electronAPI\.onGlobalMouseDown\(\(point\) => \{/);
+  assert.match(renderer, /if \(!isChatOpen\) return;/);
+  assert.match(renderer, /if \(isScreenPointInsideElement\(chatPanel, point\.x, point\.y\)\) return;/);
+  assert.match(renderer, /closeChat\(\);/);
+  assert.match(preload, /onGlobalMouseDown:\s*\(cb\) => ipcRenderer\.on\('global-mouse-down', \(_, point\) => cb\(point\)\)/);
+  assert.match(main, /win\.webContents\.send\('global-mouse-down', \{ x: e\.x, y: e\.y \}\)/);
+  assert.match(chat, /const \{ chatPanel, chatBackdrop, chatMessages, chatInput, chatSend, chatClose \} = elements;/);
+  assert.match(chat, /chatBackdrop\.classList\.remove\('hidden'\);/);
+  assert.match(chat, /chatBackdrop\.classList\.add\('hidden'\);/);
+  assert.match(chat, /chatBackdrop\.addEventListener\('click', closeChat\);/);
+  assert.match(css, /#chat-backdrop \{[\s\S]*position:\s*fixed;[\s\S]*pointer-events:\s*auto;/);
 });
 
 test('chat open does not force whole-window mouse capture', () => {

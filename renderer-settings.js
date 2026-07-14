@@ -1,7 +1,6 @@
 (function () {
   const MODEL_CONFIGS_KEY = 'modelConfigs';
   const SECRET_PREFIXES = ['safe:v1:', 'plain:v1:'];
-  const DEFAULT_WEB_SEARCH_TOPK = 5;
 
   function createSettingsController(deps) {
     const {
@@ -16,8 +15,6 @@
       settingsModal,
       settingPetName,
       settingSystemPrompt,
-      settingAutoWebFallback,
-      settingWebSearchTopK,
       settingTranslateModelMode,
       settingTranslateCustom,
       settingTranslateBaseUrl,
@@ -49,13 +46,6 @@
       } catch {
         return {};
       }
-    }
-
-    function clampWebSearchTopK(value) {
-      const n = Number.isFinite(Number(value)) ? Number(value) : DEFAULT_WEB_SEARCH_TOPK;
-      if (n < 3) return 3;
-      if (n > 8) return 8;
-      return Math.floor(n);
     }
 
     function isProtectedSecretValue(value) {
@@ -316,8 +306,6 @@
 
     function loadSettings() {
       const settings = parseSettingsSafe();
-      const autoWebFallback = settings.autoWebFallback !== false;
-      const webSearchTopK = clampWebSearchTopK(settings.webSearchTopK);
       const translateModelMode = settings.translateModelMode === 'custom' ? 'custom' : 'same';
 
       if (Object.keys(settings).length > 0) {
@@ -328,8 +316,6 @@
         settingSystemPrompt.value = '';
       }
 
-      settingAutoWebFallback.checked = autoWebFallback;
-      settingWebSearchTopK.value = String(webSearchTopK);
       settingTranslateModelMode.value = translateModelMode;
       settingTranslateBaseUrl.value = settings.translateBaseUrl || '';
       settingTranslateModel.value = settings.translateModel || '';
@@ -350,9 +336,7 @@
         apiKey: model.apiKey,
         provider: model.provider || 'openai',
         petName: extra.petName || '',
-        systemPrompt: extra.systemPrompt || '',
-        autoWebFallback: extra.autoWebFallback !== false,
-        webSearchTopK: clampWebSearchTopK(extra.webSearchTopK)
+        systemPrompt: extra.systemPrompt || ''
       };
     }
 
@@ -362,8 +346,6 @@
       const settings = {
         petName: settingPetName.value.trim(),
         systemPrompt: settingSystemPrompt.value.trim(),
-        autoWebFallback: !!settingAutoWebFallback.checked,
-        webSearchTopK: clampWebSearchTopK(settingWebSearchTopK.value),
         translateModelMode: settingTranslateModelMode.value === 'custom' ? 'custom' : 'same',
         translateBaseUrl: settingTranslateBaseUrl.value.trim(),
         translateModel: settingTranslateModel.value.trim(),
@@ -418,7 +400,6 @@
     return {
       bindSettingsEvents,
       parseSettingsSafe,
-      clampWebSearchTopK,
       initializeProtectedSecrets,
       getSettings,
       getTranslateModelConfig,

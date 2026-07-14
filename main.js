@@ -221,7 +221,9 @@ app.whenReady().then(() => {
 
     uIOhook.on('mousedown', (e) => {
       if (e.button !== 1) return; // uiohook: button 1 = left
-      if (!robotBounds || !win) return;
+      if (!win) return;
+      win.webContents.send('global-mouse-down', { x: e.x, y: e.y });
+      if (!robotBounds) return;
       const { x, y, width, height } = robotBounds;
       if (e.x >= x && e.x <= x + width && e.y >= y && e.y <= y + height) {
         win.webContents.send('robot-click');

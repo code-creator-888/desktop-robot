@@ -50,6 +50,7 @@
       </select>
       <button id="snooze-btn">确定</button>
     </div>
+    <div id="chat-backdrop" class="hidden"></div>
     <div id="chat-panel" class="hidden">
       <div id="chat-header">
         <span>💬 聊天</span>
@@ -225,7 +226,7 @@
       <div class="settings-section">
         <div class="settings-section-header">
           <h4>聊天模型</h4>
-          <p>这里配置聊天与联网总结使用的主模型。</p>
+          <p>这里配置聊天使用的主模型。</p>
         </div>
         <label>可用模型</label>
         <div id="model-list"></div>
@@ -276,20 +277,12 @@
       <div class="settings-divider"></div>
       <div class="settings-section-header">
         <h4>通用设置</h4>
-        <p>这些选项会影响机器人名称、提示词和联网回退行为。</p>
+        <p>这些选项会影响机器人名称和聊天提示词。</p>
       </div>
       <label>机器人名字</label>
       <input type="text" id="setting-pet-name" placeholder="小机（留空使用默认）">
       <label>系统提示词</label>
       <textarea id="setting-system-prompt" placeholder="留空使用默认提示词" rows="3"></textarea>
-      <label class="inline-setting">
-        <input type="checkbox" id="setting-auto-web-fallback" checked>
-        失败时自动联网搜索
-      </label>
-      <label class="inline-setting" for="setting-web-search-topk">
-        联网结果数量
-        <input type="number" id="setting-web-search-topk" min="3" max="8" value="5">
-      </label>
       <div class="settings-actions">
         <button id="setting-save">保存</button>
         <button id="setting-cancel">取消</button>
