@@ -29,7 +29,7 @@ test('renderer supports deleting reminders from list', () => {
   const source = fs.readFileSync(reminderModulePath, 'utf8');
   assert.match(source, /'reminder-delete-btn'/);
   assert.match(source, /querySelectorAll\('\.reminder-delete-btn'\)/);
-  assert.match(source, /reminderItems\s*=\s*reminderItems\.filter\(x => x\.id !== id\)/);
+  assert.match(source, /reminderItems\s*=\s*reminderItems\.filter\(\(?x\)?\s*=>\s*x\.id !== id\)/);
 });
 
 test('renderer supports rule-based reminder scheduling', () => {
@@ -50,7 +50,10 @@ test('renderer has no snooze controls or snooze rule data', () => {
 
 test('renderer ignores pet click when snooze bar is visible', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'renderer-effects.js'), 'utf8');
-  assert.match(source, /function handleRobotClick\(\) \{[\s\S]*if\s*\(!snoozeBar\.classList\.contains\('hidden'\)\)\s*return;/);
+  assert.match(
+    source,
+    /function handleRobotClick\(\) \{[\s\S]*if\s*\(!snoozeBar\.classList\.contains\('hidden'\)\)\s*return;/
+  );
 });
 
 test('renderer keeps current alert item for snooze confirm and reactivates reminder', () => {
@@ -65,7 +68,10 @@ test('renderer keeps current alert item for snooze confirm and reactivates remin
 test('reminder alerts are queued and one-time reminders are only completed after acknowledgement', () => {
   const source = fs.readFileSync(reminderModulePath, 'utf8');
   assert.match(source, /if \(item\.status === 'done' \|\| item\.alertPending\) continue;/);
-  assert.match(source, /if \(\(currentAlertItem\.rule\?\.type \|\| 'one-time'\) === 'one-time'\) \{\s*currentAlertItem\.status = 'done';/);
+  assert.match(
+    source,
+    /if \(\(currentAlertItem\.rule\?\.type \|\| 'one-time'\) === 'one-time'\) \{\s*currentAlertItem\.status = 'done';/
+  );
 });
 
 test('preload exposes calendar fetch for reminder import', () => {

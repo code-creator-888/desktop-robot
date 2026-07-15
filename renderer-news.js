@@ -10,13 +10,7 @@
       setNewsOpen
     } = deps;
 
-    const {
-      newsPanel,
-      newsPanelClose,
-      newsPanelRefresh,
-      newsPanelStatus,
-      newsListEl
-    } = elements;
+    const { newsPanel, newsPanelClose, newsPanelRefresh, newsPanelStatus, newsListEl } = elements;
 
     const NEWS_AUTO_REFRESH_MS = 5 * 60 * 1000;
     let hotNewsRotationIndex = 0;
@@ -33,7 +27,7 @@
             title: typeof item === 'string' ? item : String(item?.title || ''),
             url: typeof item === 'string' ? '' : String(item?.url || '')
           }))
-          .filter(item => item.title);
+          .filter((item) => item.title);
         hotNewsRotationIndex %= cachedHotNewsHeadlines.length;
       }
       return res;

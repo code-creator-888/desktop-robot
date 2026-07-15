@@ -5,7 +5,7 @@
     const el = document.getElementById(listId);
     if (!el || !Array.isArray(processes)) return;
     el.innerHTML = '';
-    processes.forEach(p => {
+    processes.forEach((p) => {
       const row = document.createElement('div');
       row.className = 'proc-row';
       appendTextElement(row, 'span', 'proc-col-cmd', p.cmd, { title: `${p.cmd} [${p.pid}]` });
@@ -42,7 +42,7 @@
       header.appendChild(actions);
       item.appendChild(header);
 
-      processes.forEach(proc => {
+      processes.forEach((proc) => {
         const row = document.createElement('div');
         row.className = 'port-process-row';
         appendTextElement(row, 'span', 'port-proc-cmd', proc.command, { title: proc.command });
@@ -55,14 +55,14 @@
       list.appendChild(item);
     }
 
-    list.querySelectorAll('.port-remove-btn').forEach(btn => {
+    list.querySelectorAll('.port-remove-btn').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const port = parseInt(btn.dataset.port, 10);
         if (handlers.removePort) await handlers.removePort(port);
       });
     });
 
-    list.querySelectorAll('.port-kill-btn').forEach(btn => {
+    list.querySelectorAll('.port-kill-btn').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const pid = parseInt(btn.dataset.pid, 10);
         if (handlers.killProcess) await handlers.killProcess(pid);
@@ -78,7 +78,7 @@
     summary.textContent = `共 ${data.allCount} 个监听端口，显示前 ${data.allListening.length} 个`;
     list.innerHTML = '';
 
-    data.allListening.forEach(p => {
+    data.allListening.forEach((p) => {
       const row = document.createElement('div');
       row.className = 'all-port-row';
       appendTextElement(row, 'span', 'all-port-num', p.port);

@@ -53,7 +53,10 @@ test('renderer enforces compact output format for english and chinese translatio
   assert.match(source, /function needsChineseExplainRepair\(/);
   assert.match(source, /function formatEnglishTranslationResult\(/);
   assert.match(source, /if\s*\(needsChineseExplainRepair\(text,\s*reply\)\)/);
-  assert.match(source, /if\s*\(!containsChinese\(text\)\)\s*\{\s*reply = formatEnglishTranslationResult\(text,\s*reply\);\s*\}/);
+  assert.match(
+    source,
+    /if\s*\(!containsChinese\(text\)\)\s*\{\s*reply = formatEnglishTranslationResult\(text,\s*reply\);\s*\}/
+  );
   assert.match(source, /tonePinyinPattern/);
   assert.match(source, /compactChinesePattern/);
   assert.match(source, /appendTranslateMessage\(reply\)/);

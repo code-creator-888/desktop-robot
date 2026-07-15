@@ -60,7 +60,7 @@ test('chat IPC validates base URL protocol and payload shape', () => {
   assert.match(source, /Unsupported base URL protocol/);
   assert.doesNotMatch(source, /HTTP base URL is only allowed for local debugging/);
   assert.doesNotMatch(source, /function isLocalDebugHttpHost\(hostname\)/);
-  assert.match(source, /messages\.slice\(-30\)/);
+  assert.match(source, /messages\s*\.\s*slice\(-30\)/);
   assert.match(source, /content: String\(message\?\.content \|\| ''\)\.slice\(0, 20000\)/);
   assert.match(source, /requestId: String\(payload\.requestId \|\| ''\)\.slice\(0, 80\)/);
   assert.match(source, /const activeChatRequests = new Map\(\)/);
@@ -79,7 +79,10 @@ test('chat IPC allows HTTP and HTTPS model endpoints', () => {
   assert.equal(normalizeChatPayload({ ...basePayload, baseUrl: 'http://192.168.1.20:11434/v1' }).error, undefined);
   assert.equal(normalizeChatPayload({ ...basePayload, baseUrl: 'http://example.com/v1' }).error, undefined);
   assert.equal(normalizeChatPayload({ ...basePayload, baseUrl: 'https://api.example.com/v1' }).error, undefined);
-  assert.equal(normalizeChatPayload({ ...basePayload, baseUrl: 'file:///tmp/model' }).error, 'Unsupported base URL protocol');
+  assert.equal(
+    normalizeChatPayload({ ...basePayload, baseUrl: 'file:///tmp/model' }).error,
+    'Unsupported base URL protocol'
+  );
 });
 
 test('browser window uses hardened web preferences', () => {
@@ -146,9 +149,9 @@ test('chat decrypts protected API keys in the main process', () => {
   assert.match(main, /const \{ protectSecret, unprotectSecret \} = secretStore/);
   assert.match(source, /const resolvedApiKey = unprotectSecret\(apiKey\)/);
   assert.match(source, /'x-api-key': resolvedApiKey/);
-  assert.match(source, /'Authorization': `Bearer \$\{resolvedApiKey\}`/);
+  assert.match(source, /Authorization:\s*`Bearer \$\{resolvedApiKey\}`/);
   assert.doesNotMatch(source, /'x-api-key': apiKey/);
-  assert.doesNotMatch(source, /'Authorization': `Bearer \$\{apiKey\}`/);
+  assert.doesNotMatch(source, /Authorization:\s*`Bearer \$\{apiKey\}`/);
 });
 
 test('preload exposes secret protection without exposing decrypt', () => {
@@ -187,8 +190,14 @@ test('model menu uses sanitized renderer state instead of executeJavaScript', ()
 
 test('translation API key settings are protected and preserved when blank', () => {
   const source = fs.readFileSync(rendererSettingsPath, 'utf8');
-  assert.match(source, /settingTranslateApiKey\.value = isProtectedSecretValue\(settings\.translateApiKey\) \? ''/);
-  assert.match(source, /translateApiKeyInput \? await protectSecretValue\(translateApiKeyInput\) : \(existing\.translateApiKey \|\| ''\)/);
+  assert.match(
+    source,
+    /settingTranslateApiKey\s*\.value\s*=\s*isProtectedSecretValue\(settings\.translateApiKey\)\s*\?\s*''/
+  );
+  assert.match(
+    source,
+    /translateApiKeyInput\s*\?\s*await protectSecretValue\(translateApiKeyInput\)\s*:\s*\(?existing\.translateApiKey \|\| ''\)?/
+  );
 });
 
 test('system monitor avoids shell pipelines and overlapping refreshes', () => {
@@ -205,7 +214,10 @@ test('system monitor avoids shell pipelines and overlapping refreshes', () => {
   assert.doesNotMatch(portMonitor, /netstat -ibn|awk|grep|tail -1/);
   assert.match(main, /createSystemMonitor\(\{/);
   assert.match(systemMonitor, /execFileAsync\('\/usr\/sbin\/netstat', \['-ibn'\]/);
-  assert.match(systemMonitor, /execFileAsync\('\/usr\/sbin\/ioreg', \['-c', 'IOBlockStorageDriver', '-r', '-k', 'Statistics'\]/);
+  assert.match(
+    systemMonitor,
+    /execFileAsync\(\s*'\/usr\/sbin\/ioreg'\s*,\s*\['-c', 'IOBlockStorageDriver', '-r', '-k', 'Statistics'\]/
+  );
   assert.match(systemMonitor, /execFileAsync\('\/usr\/bin\/top', \['-l', '2', '-n', '0', '-s', '1'\]/);
   assert.match(renderer, /let systemStatsInFlight = false/);
   assert.match(renderer, /if \(systemStatsInFlight\) return/);
@@ -321,6 +333,44 @@ test('chat web search IPC is not registered or exposed', () => {
 
   assert.doesNotMatch(main, /ipcMain\.handle\('web-search'/);
   assert.doesNotMatch(preload, /webSearch|web-search/);
-  assert.doesNotMatch(webSearchIpc, /ipcMain\.handle\('web-search'|normalizeWebSearchPayload|parseDuckDuckGoResults|parseBingResults|parseSoResults/);
+  assert.doesNotMatch(
+    webSearchIpc,
+    /ipcMain\.handle\('web-search'|normalizeWebSearchPayload|parseDuckDuckGoResults|parseBingResults|parseSoResults/
+  );
   assert.doesNotMatch(chat, /window\.electronAPI\.webSearch|autoWebFallback|webSearchTopK/);
+});
+
+test('main process blocks renderer navigation, popups, webviews, and permission requests', () => {
+  const main = fs.readFileSync(mainPath, 'utf8');
+
+  assert.match(main, /function lockDownWebContents\(webContents\)/);
+  assert.match(main, /webContents\.setWindowOpenHandler\(\(\) => \(\{ action: 'deny' \}\)\)/);
+  assert.match(main, /webContents\.on\('will-navigate', \(event\) => \{\s*event\.preventDefault\(\);\s*\}\)/);
+  assert.match(main, /webContents\.on\('will-redirect', \(event\) => \{\s*event\.preventDefault\(\);\s*\}\)/);
+  assert.match(main, /webContents\.on\('will-attach-webview', \(event\) => \{\s*event\.preventDefault\(\);\s*\}\)/);
+  assert.match(main, /webContents\.session\.setPermissionRequestHandler\([^]*?callback\(false\)/);
+  assert.match(main, /lockDownWebContents\(win\.webContents\);/);
+});
+
+test('direct main-process IPC only accepts the application renderer', () => {
+  const main = fs.readFileSync(mainPath, 'utf8');
+
+  assert.match(main, /function isTrustedIpcSender\(event\)/);
+  assert.match(main, /event\.sender === win\.webContents/);
+  assert.match(
+    main,
+    /ipcMain\.on\('set-ignore-mouse-events', \(event, ignore\) => \{\s*if \(!isTrustedIpcSender\(event\) \|\| typeof ignore !== 'boolean'\) return;/
+  );
+  assert.match(
+    main,
+    /ipcMain\.on\('set-robot-bounds', \(event, bounds\) => \{\s*if \(!isTrustedIpcSender\(event\)\) return;/
+  );
+  assert.match(
+    main,
+    /ipcMain\.on\('show-context-menu', async \(event, point\) => \{\s*if \(!isTrustedIpcSender\(event\)\) return;/
+  );
+  assert.match(
+    main,
+    /ipcMain\.handle\('protect-secret', \(event, secret\) => \{\s*if \(!isTrustedIpcSender\(event\)\)/
+  );
 });

@@ -45,7 +45,7 @@
         const items = JSON.parse(raw);
         if (!Array.isArray(items)) return [];
         return items
-          .filter(item => item && item.id && item.title && (item.dueAt || item.nextTriggerAt))
+          .filter((item) => item && item.id && item.title && (item.dueAt || item.nextTriggerAt))
           .map((item) => {
             const ruleType = item.rule?.type || 'one-time';
             return {
@@ -67,7 +67,7 @@
     }
 
     function findReminderById(id) {
-      return reminderItems.find(item => item.id === id) || null;
+      return reminderItems.find((item) => item.id === id) || null;
     }
 
     function queueReminderAlert(item) {
@@ -87,7 +87,17 @@
       const d = new Date(iso);
       if (Number.isNaN(d.getTime())) return '';
       const pad = (n) => String(n).padStart(2, '0');
-      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      return (
+        d.getFullYear() +
+        '-' +
+        pad(d.getMonth() + 1) +
+        '-' +
+        pad(d.getDate()) +
+        'T' +
+        pad(d.getHours()) +
+        ':' +
+        pad(d.getMinutes())
+      );
     }
 
     function formatReminderRule(type) {
@@ -134,7 +144,9 @@
     function renderReminderList() {
       if (!reminderListEl) return;
       reminderListEl.innerHTML = '';
-      const sorted = [...reminderItems].sort((a, b) => new Date(a.nextTriggerAt || a.dueAt).getTime() - new Date(b.nextTriggerAt || b.dueAt).getTime());
+      const sorted = [...reminderItems].sort(
+        (a, b) => new Date(a.nextTriggerAt || a.dueAt).getTime() - new Date(b.nextTriggerAt || b.dueAt).getTime()
+      );
 
       sorted.forEach((item) => {
         const ruleType = item.rule?.type || 'one-time';
@@ -178,7 +190,12 @@
           const main = document.createElement('div');
           main.className = 'reminder-item-main';
           appendTextElement(main, 'div', 'reminder-item-title', item.title);
-          appendTextElement(main, 'div', 'reminder-item-meta', `${formatReminderTime(item.nextTriggerAt || item.dueAt)} · ${formatReminderRule(ruleType)}`);
+          appendTextElement(
+            main,
+            'div',
+            'reminder-item-meta',
+            `${formatReminderTime(item.nextTriggerAt || item.dueAt)} · ${formatReminderRule(ruleType)}`
+          );
           if (item.status !== 'done') {
             const countdown = document.createElement('div');
             countdown.className = 'reminder-countdown';
@@ -209,7 +226,7 @@
       reminderListEl.querySelectorAll('.reminder-save-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = btn.dataset.id;
-          const item = reminderItems.find(x => x.id === id);
+          const item = reminderItems.find((x) => x.id === id);
           if (!item) return;
           const row = btn.closest('.reminder-item');
           const title = row.querySelector('.reminder-edit-title').value.trim();
@@ -239,7 +256,7 @@
       reminderListEl.querySelectorAll('.reminder-done-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = btn.dataset.id;
-          const item = reminderItems.find(x => x.id === id);
+          const item = reminderItems.find((x) => x.id === id);
           if (!item) return;
           item.status = 'done';
           saveReminderItems();
@@ -250,7 +267,7 @@
       reminderListEl.querySelectorAll('.reminder-delete-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = btn.dataset.id;
-          reminderItems = reminderItems.filter(x => x.id !== id);
+          reminderItems = reminderItems.filter((x) => x.id !== id);
           saveReminderItems();
           renderReminderList();
         });
@@ -264,7 +281,10 @@
       const now = Date.now();
       reminderListEl.querySelectorAll('.reminder-countdown').forEach((el) => {
         const ts = Number(el.dataset.triggerTs);
-        if (!ts || Number.isNaN(ts)) { el.textContent = ''; return; }
+        if (!ts || Number.isNaN(ts)) {
+          el.textContent = '';
+          return;
+        }
         const remaining = ts - now;
         el.textContent = '⏳ ' + formatCountdown(remaining);
         el.classList.toggle('countdown-urgent', remaining > 0 && remaining <= 60000);
@@ -278,7 +298,10 @@
     }
 
     function stopCountdown() {
-      if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
     }
 
     function showActiveReminderAlert(item) {
@@ -390,7 +413,12 @@
     }
 
     function handleSpeechBubbleClick() {
-      if (!speechBubble.classList.contains('clickable') && !speechBubble.classList.contains('news') && !currentAlertItem) return;
+      if (
+        !speechBubble.classList.contains('clickable') &&
+        !speechBubble.classList.contains('news') &&
+        !currentAlertItem
+      )
+        return;
       speechBubble.classList.add('hidden');
       speechBubble.classList.remove('clickable', 'news', 'reminder-alert');
       snoozeBar.classList.add('hidden');
@@ -459,7 +487,7 @@
       reminderItems = loadReminderItems();
       pendingAlertIds = [];
       [...reminderItems]
-        .filter(item => item.alertPending)
+        .filter((item) => item.alertPending)
         .sort((a, b) => new Date(a.nextTriggerAt || a.dueAt).getTime() - new Date(b.nextTriggerAt || b.dueAt).getTime())
         .forEach(queueReminderAlert);
       checkDueReminders();

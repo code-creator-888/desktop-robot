@@ -54,21 +54,22 @@ test('normalizeWebSearchPayload rejects empty query with structured error', () =
 });
 
 test('parseDuckDuckGoResults extracts title snippet and url', () => {
-  const html = '<a class="result__a" href="https://a.com">A <b>Title</b></a><div><a class="result__snippet">Hello &amp; world</a></div>';
+  const html =
+    '<a class="result__a" href="https://a.com">A <b>Title</b></a><div><a class="result__snippet">Hello &amp; world</a></div>';
   assert.deepEqual(parseDuckDuckGoResults(html), [
     { title: 'A Title', snippet: 'Hello & world', url: 'https://a.com' }
   ]);
 });
 
 test('parseBingResults extracts title snippet and url', () => {
-  const html = '<li class="b_algo"><h2><a href="https://b.com">B <strong>Title</strong></a></h2><div class="b_caption"><p>Snippet &amp; more</p></div></li>';
-  assert.deepEqual(parseBingResults(html), [
-    { title: 'B Title', snippet: 'Snippet & more', url: 'https://b.com' }
-  ]);
+  const html =
+    '<li class="b_algo"><h2><a href="https://b.com">B <strong>Title</strong></a></h2><div class="b_caption"><p>Snippet &amp; more</p></div></li>';
+  assert.deepEqual(parseBingResults(html), [{ title: 'B Title', snippet: 'Snippet & more', url: 'https://b.com' }]);
 });
 
 test('parseSoResults extracts title snippet and prefers data-mdurl', () => {
-  const html = '<li class="res-list"><h3 class="res-title "><a href="https://www.so.com/link?x=1" data-mdurl="https://real.example.com/page"><em>MONA L03</em>上市</a></h3><p class="res-desc">将于 7 月上市</p></li>';
+  const html =
+    '<li class="res-list"><h3 class="res-title "><a href="https://www.so.com/link?x=1" data-mdurl="https://real.example.com/page"><em>MONA L03</em>上市</a></h3><p class="res-desc">将于 7 月上市</p></li>';
   assert.deepEqual(parseSoResults(html), [
     { title: 'MONA L03 上市', snippet: '将于 7 月上市', url: 'https://real.example.com/page' }
   ]);

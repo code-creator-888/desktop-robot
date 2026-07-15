@@ -11,12 +11,17 @@
   "scripts": {
     "start": "node scripts/start-electron.js",
     "test": "node --test",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
     "pack": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir --publish never --config.mac.identity=null",
     "dist": "electron-builder"
   },
   "devDependencies": {
     "electron": "^42.4.1",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "eslint": "9.20.1",
+    "prettier": "3.5.3"
   },
   "dependencies": {
     "three": "^0.184.0",

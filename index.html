@@ -1,305 +1,328 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div id="pet-container">
-    <div id="pet-stage">
-      <div id="robot-3d-host" aria-hidden="true"></div>
-      <div id="pet-depth-stack" aria-hidden="true">
-        <div class="pet-depth-layer layer-1"></div>
-        <div class="pet-depth-layer layer-2"></div>
-        <div class="pet-depth-layer layer-3"></div>
-        <div class="pet-depth-layer layer-4"></div>
-        <div class="pet-depth-layer layer-5"></div>
-      </div>
-      <img id="pet" src="assets/robot.svg" alt="机器人" draggable="false">
-      <div id="tech-prop" aria-hidden="true">
-        <div class="tech-laptop">
-          <div class="tech-screen">
-            <div class="tech-scan-line"></div>
-            <div class="tech-cursor"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="pet-container">
+      <div id="pet-stage">
+        <div id="robot-3d-host" aria-hidden="true"></div>
+        <div id="pet-depth-stack" aria-hidden="true">
+          <div class="pet-depth-layer layer-1"></div>
+          <div class="pet-depth-layer layer-2"></div>
+          <div class="pet-depth-layer layer-3"></div>
+          <div class="pet-depth-layer layer-4"></div>
+          <div class="pet-depth-layer layer-5"></div>
+        </div>
+        <img id="pet" src="assets/robot.svg" alt="机器人" draggable="false" />
+        <div id="tech-prop" aria-hidden="true">
+          <div class="tech-laptop">
+            <div class="tech-screen">
+              <div class="tech-scan-line"></div>
+              <div class="tech-cursor"></div>
+            </div>
+            <div class="tech-keyboard">
+              <div class="tech-key-hit tech-key-hit-left"></div>
+              <div class="tech-key-hit tech-key-hit-right"></div>
+            </div>
           </div>
-          <div class="tech-keyboard">
-            <div class="tech-key-hit tech-key-hit-left"></div>
-            <div class="tech-key-hit tech-key-hit-right"></div>
-          </div>
+          <div class="tech-glow"></div>
         </div>
-        <div class="tech-glow"></div>
-      </div>
-      <!-- 打字手臂：定位在 SVG 手臂坐标位置，thinking-tech 时伸向键盘 -->
-      <div class="tech-hand tech-hand-left" aria-hidden="true"></div>
-      <div class="tech-hand tech-hand-right" aria-hidden="true"></div>
-      <div id="idle-effects" aria-hidden="true">
-        <div class="idle-mouth"></div>
-        <div class="idle-yawn-hand"></div>
-        <div class="idle-self-hand left"></div>
-        <div class="idle-self-hand right"></div>
-      </div>
-    </div>
-    <div id="speech-bubble" class="hidden"></div>
-    <div id="snooze-bar" class="hidden">
-      <span>稍后提醒</span>
-      <select id="snooze-select">
-        <option value="1">1 分钟</option>
-        <option value="5">5 分钟</option>
-        <option value="10">10 分钟</option>
-      </select>
-      <button id="snooze-btn">确定</button>
-    </div>
-    <div id="chat-backdrop" class="hidden"></div>
-    <div id="chat-panel" class="hidden">
-      <div id="chat-header">
-        <span>💬 聊天</span>
-        <span id="chat-model-indicator"></span>
-        <button id="chat-close">✕</button>
-      </div>
-      <div id="chat-session-bar"></div>
-      <div id="chat-messages"></div>
-      <div id="chat-input-area">
-        <input type="text" id="chat-input" placeholder="跟机器人说点什么...">
-        <button id="chat-send">发送</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 系统监控 -->
-  <div id="system-monitor" class="hidden">
-    <div class="monitor-backdrop"></div>
-    <div class="monitor-card monitor-card-wide">
-      <div class="monitor-header">
-        <span>📊 系统监控</span>
-        <div class="monitor-header-right">
-          <select id="system-monitor-interval" class="monitor-interval-select">
-            <option value="5000">5秒</option>
-            <option value="10000">10秒</option>
-            <option value="30000">30秒</option>
-            <option value="60000">60秒</option>
-          </select>
-          <button id="system-monitor-close">✕</button>
+        <!-- 打字手臂：定位在 SVG 手臂坐标位置，thinking-tech 时伸向键盘 -->
+        <div class="tech-hand tech-hand-left" aria-hidden="true"></div>
+        <div class="tech-hand tech-hand-right" aria-hidden="true"></div>
+        <div id="idle-effects" aria-hidden="true">
+          <div class="idle-mouth"></div>
+          <div class="idle-yawn-hand"></div>
+          <div class="idle-self-hand left"></div>
+          <div class="idle-self-hand right"></div>
         </div>
       </div>
-      <div class="monitor-tabs">
-        <button class="monitor-tab active" data-tab="overview">概览</button>
-        <button class="monitor-tab" data-tab="cpu-proc">CPU 进程</button>
-        <button class="monitor-tab" data-tab="mem-proc">内存进程</button>
-      </div>
-      <!-- 概览 tab -->
-      <div class="monitor-tab-content active" id="tab-overview">
-        <div class="stat-row"><span class="stat-label">CPU 使用率</span><span class="stat-value" id="stat-cpu">-</span></div>
-        <div class="stat-row"><span class="stat-label">CPU 型号</span><span class="stat-value stat-small" id="stat-cpu-model">-</span></div>
-        <div class="stat-row"><span class="stat-label">内存用量</span><span class="stat-value" id="stat-mem">-</span></div>
-        <div class="stat-row"><span class="stat-label">内存占用</span><span class="stat-value" id="stat-mem-percent">-</span></div>
-        <div class="stat-row"><span class="stat-label">负载均值</span><span class="stat-value" id="stat-load">-</span></div>
-        <div class="stat-row"><span class="stat-label">系统运行</span><span class="stat-value" id="stat-uptime">-</span></div>
-        <div class="stat-row"><span class="stat-label">网络 ↓</span><span class="stat-value" id="stat-net-in">-</span></div>
-        <div class="stat-row"><span class="stat-label">网络 ↑</span><span class="stat-value" id="stat-net-out">-</span></div>
-        <div class="stat-row"><span class="stat-label">磁盘读</span><span class="stat-value" id="stat-disk-read">-</span></div>
-        <div class="stat-row"><span class="stat-label">磁盘写</span><span class="stat-value" id="stat-disk-write">-</span></div>
-      </div>
-      <!-- CPU进程 tab -->
-      <div class="monitor-tab-content" id="tab-cpu-proc">
-        <div class="proc-table-header">
-          <span class="proc-col-cmd">进程</span>
-          <span class="proc-col-cpu">CPU</span>
-          <span class="proc-col-mem">内存</span>
-          <span class="proc-col-pid">PID</span>
-        </div>
-        <div id="proc-cpu-list" class="proc-list"></div>
-      </div>
-      <!-- 内存进程 tab -->
-      <div class="monitor-tab-content" id="tab-mem-proc">
-        <div class="proc-table-header">
-          <span class="proc-col-cmd">进程</span>
-          <span class="proc-col-cpu">CPU</span>
-          <span class="proc-col-mem">内存</span>
-          <span class="proc-col-pid">PID</span>
-        </div>
-        <div id="proc-mem-list" class="proc-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 端口监控 -->
-  <div id="port-monitor" class="hidden">
-    <div class="monitor-backdrop"></div>
-    <div class="monitor-card monitor-card-wide">
-      <div class="monitor-header">
-        <span>🔌 端口监控</span>
-        <div class="monitor-header-right">
-          <select id="port-monitor-interval" class="monitor-interval-select">
-            <option value="5000">5秒</option>
-            <option value="10000">10秒</option>
-            <option value="30000">30秒</option>
-            <option value="60000">60秒</option>
-          </select>
-          <button id="port-monitor-close">✕</button>
-        </div>
-      </div>
-      <div class="monitor-tabs">
-        <button class="monitor-tab active" data-tab="watched">监控端口</button>
-        <button class="monitor-tab" data-tab="all-ports">所有监听</button>
-      </div>
-      <!-- 监控端口 tab -->
-      <div class="monitor-tab-content active" id="tab-watched">
-        <div id="port-watched-list" class="port-list"></div>
-        <div class="port-add-row">
-          <input type="number" id="port-add-input" placeholder="输入端口号 1-65535" min="1" max="65535">
-          <button id="port-add-btn">添加</button>
-        </div>
-      </div>
-      <!-- 所有监听 tab -->
-      <div class="monitor-tab-content" id="tab-all-ports">
-        <div class="all-ports-summary" id="all-ports-summary"></div>
-        <div class="proc-table-header">
-          <span class="port-col-port">端口</span>
-          <span class="port-col-cmd">进程</span>
-          <span class="port-col-addr">协议</span>
-          <span class="port-col-user">用户</span>
-          <span class="port-col-pid">PID</span>
-        </div>
-        <div id="all-ports-list" class="proc-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <div id="reminder-center" class="hidden">
-    <div class="monitor-backdrop"></div>
-    <div class="monitor-card monitor-card-wide">
-      <div class="monitor-header">
-        <span>⏰ 提醒中心</span>
-        <button id="reminder-center-close">✕</button>
-      </div>
-      <div class="reminder-add-row">
-        <input type="text" id="reminder-add-title" placeholder="提醒内容，例如：喝水" maxlength="60">
-        <input type="datetime-local" id="reminder-add-time">
-        <select id="reminder-rule-type">
-          <option value="one-time">仅一次</option>
-          <option value="daily">每天</option>
-          <option value="weekly">每周</option>
-          <option value="workday">工作日</option>
+      <div id="speech-bubble" class="hidden"></div>
+      <div id="snooze-bar" class="hidden">
+        <span>稍后提醒</span>
+        <select id="snooze-select">
+          <option value="1">1 分钟</option>
+          <option value="5">5 分钟</option>
+          <option value="10">10 分钟</option>
         </select>
-        <button id="reminder-add-btn">添加提醒</button>
+        <button id="snooze-btn">确定</button>
       </div>
-      <div id="reminder-list" class="reminder-list"></div>
-    </div>
-  </div>
-
-  <div id="news-panel" class="hidden">
-    <div class="monitor-backdrop"></div>
-    <div class="monitor-card monitor-card-wide">
-      <div class="monitor-header">
-        <span>📰 热点新闻</span>
-        <div class="monitor-header-right">
-          <button id="news-panel-refresh" class="news-refresh-btn">刷新</button>
-          <button id="news-panel-close">✕</button>
+      <div id="chat-backdrop" class="hidden"></div>
+      <div id="chat-panel" class="hidden">
+        <div id="chat-header">
+          <span>💬 聊天</span>
+          <span id="chat-model-indicator"></span>
+          <button id="chat-close">✕</button>
+        </div>
+        <div id="chat-session-bar"></div>
+        <div id="chat-messages"></div>
+        <div id="chat-input-area">
+          <input type="text" id="chat-input" placeholder="跟机器人说点什么..." />
+          <button id="chat-send">发送</button>
         </div>
       </div>
-      <div id="news-panel-status" class="news-panel-status">自动每 5 分钟刷新</div>
-      <div id="news-list" class="news-list"></div>
     </div>
-  </div>
 
-  <div id="todo-list" class="hidden">
-    <div class="monitor-backdrop"></div>
-    <div class="monitor-card monitor-card-wide">
-      <div class="monitor-header">
-        <span>✅ 待办清单</span>
-        <button id="todo-list-close">✕</button>
-      </div>
-      <div class="todo-add-row">
-        <input type="text" id="todo-add-title" placeholder="待办事项，例如：写周报" maxlength="60">
-        <input type="datetime-local" id="todo-add-due">
-        <button id="todo-add-btn">添加</button>
-      </div>
-      <div id="todo-items" class="todo-items"></div>
-    </div>
-  </div>
-
-  <div id="settings-modal" class="hidden">
-    <div class="settings-backdrop"></div>
-    <div class="settings-card settings-card-wide">
-      <h3>AI 设置</h3>
-      <div class="settings-section">
-        <div class="settings-section-header">
-          <h4>聊天模型</h4>
-          <p>这里配置聊天使用的主模型。</p>
-        </div>
-        <label>可用模型</label>
-        <div id="model-list"></div>
-        <button id="model-add-btn" class="model-add-btn">+ 添加聊天模型</button>
-        <div id="model-edit-form" class="hidden">
-          <div class="model-edit-divider"></div>
-          <div class="settings-subsection-title">编辑聊天模型</div>
-          <label>显示名称</label>
-          <input type="text" id="edit-model-name" placeholder="如: GPT-4o">
-          <label>Provider</label>
-          <select id="edit-model-provider">
-            <option value="openai">OpenAI 兼容</option>
-            <option value="anthropic">Anthropic</option>
-          </select>
-          <label>模型 ID</label>
-          <input type="text" id="edit-model-id" placeholder="如: gpt-4o, claude-sonnet-4-20250514">
-          <label>API Base URL</label>
-          <input type="text" id="edit-model-baseurl" placeholder="https://api.openai.com/v1">
-          <label>API Key</label>
-          <input type="password" id="edit-model-apikey" placeholder="sk-...">
-          <div class="model-edit-actions">
-            <button id="edit-model-save">保存</button>
-            <button id="edit-model-cancel">取消</button>
+    <!-- 系统监控 -->
+    <div id="system-monitor" class="hidden">
+      <div class="monitor-backdrop"></div>
+      <div class="monitor-card monitor-card-wide">
+        <div class="monitor-header">
+          <span>📊 系统监控</span>
+          <div class="monitor-header-right">
+            <select id="system-monitor-interval" class="monitor-interval-select">
+              <option value="5000">5秒</option>
+              <option value="10000">10秒</option>
+              <option value="30000">30秒</option>
+              <option value="60000">60秒</option>
+            </select>
+            <button id="system-monitor-close">✕</button>
           </div>
         </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-header">
-          <h4>翻译模型</h4>
-          <p>只影响划词翻译，不影响聊天回复。</p>
+        <div class="monitor-tabs">
+          <button class="monitor-tab active" data-tab="overview">概览</button>
+          <button class="monitor-tab" data-tab="cpu-proc">CPU 进程</button>
+          <button class="monitor-tab" data-tab="mem-proc">内存进程</button>
         </div>
-        <label>翻译来源</label>
-        <select id="setting-translate-model-mode">
-          <option value="same">跟随聊天模型</option>
-          <option value="custom">自定义本地小模型（OpenAI 兼容）</option>
-        </select>
-        <div id="setting-translate-custom" class="hidden">
-          <label>翻译 API Base URL</label>
-          <input type="text" id="setting-translate-baseurl" placeholder="http://127.0.0.1:11434/v1">
-          <label>翻译模型 ID</label>
-          <input type="text" id="setting-translate-model" placeholder="如: qwen2.5:7b">
-          <label>翻译 API Key</label>
-          <input type="password" id="setting-translate-apikey" placeholder="本地服务可填任意非空值">
+        <!-- 概览 tab -->
+        <div class="monitor-tab-content active" id="tab-overview">
+          <div class="stat-row">
+            <span class="stat-label">CPU 使用率</span><span class="stat-value" id="stat-cpu">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">CPU 型号</span><span class="stat-value stat-small" id="stat-cpu-model">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">内存用量</span><span class="stat-value" id="stat-mem">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">内存占用</span><span class="stat-value" id="stat-mem-percent">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">负载均值</span><span class="stat-value" id="stat-load">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">系统运行</span><span class="stat-value" id="stat-uptime">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">网络 ↓</span><span class="stat-value" id="stat-net-in">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">网络 ↑</span><span class="stat-value" id="stat-net-out">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">磁盘读</span><span class="stat-value" id="stat-disk-read">-</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">磁盘写</span><span class="stat-value" id="stat-disk-write">-</span>
+          </div>
         </div>
-      </div>
-
-      <div class="settings-divider"></div>
-      <div class="settings-section-header">
-        <h4>通用设置</h4>
-        <p>这些选项会影响机器人名称和聊天提示词。</p>
-      </div>
-      <label>机器人名字</label>
-      <input type="text" id="setting-pet-name" placeholder="小机（留空使用默认）">
-      <label>系统提示词</label>
-      <textarea id="setting-system-prompt" placeholder="留空使用默认提示词" rows="3"></textarea>
-      <div class="settings-actions">
-        <button id="setting-save">保存</button>
-        <button id="setting-cancel">取消</button>
+        <!-- CPU进程 tab -->
+        <div class="monitor-tab-content" id="tab-cpu-proc">
+          <div class="proc-table-header">
+            <span class="proc-col-cmd">进程</span>
+            <span class="proc-col-cpu">CPU</span>
+            <span class="proc-col-mem">内存</span>
+            <span class="proc-col-pid">PID</span>
+          </div>
+          <div id="proc-cpu-list" class="proc-list"></div>
+        </div>
+        <!-- 内存进程 tab -->
+        <div class="monitor-tab-content" id="tab-mem-proc">
+          <div class="proc-table-header">
+            <span class="proc-col-cmd">进程</span>
+            <span class="proc-col-cpu">CPU</span>
+            <span class="proc-col-mem">内存</span>
+            <span class="proc-col-pid">PID</span>
+          </div>
+          <div id="proc-mem-list" class="proc-list"></div>
+        </div>
       </div>
     </div>
-  </div>
-  <script type="module" src="vendor/three-global.js"></script>
-  <script src="renderer-dom.js"></script>
-  <script src="renderer-robot3d.js"></script>
-  <script src="renderer-monitor.js"></script>
-  <script src="renderer-settings.js"></script>
-  <script src="renderer-chat.js"></script>
-  <script src="renderer-reminder.js"></script>
-  <script src="renderer-news.js"></script>
-  <script src="renderer-translate.js"></script>
-  <script src="renderer-effects.js"></script>
-  <script src="renderer-todo.js"></script>
-  <script src="renderer.js"></script>
-</body>
+
+    <!-- 端口监控 -->
+    <div id="port-monitor" class="hidden">
+      <div class="monitor-backdrop"></div>
+      <div class="monitor-card monitor-card-wide">
+        <div class="monitor-header">
+          <span>🔌 端口监控</span>
+          <div class="monitor-header-right">
+            <select id="port-monitor-interval" class="monitor-interval-select">
+              <option value="5000">5秒</option>
+              <option value="10000">10秒</option>
+              <option value="30000">30秒</option>
+              <option value="60000">60秒</option>
+            </select>
+            <button id="port-monitor-close">✕</button>
+          </div>
+        </div>
+        <div class="monitor-tabs">
+          <button class="monitor-tab active" data-tab="watched">监控端口</button>
+          <button class="monitor-tab" data-tab="all-ports">所有监听</button>
+        </div>
+        <!-- 监控端口 tab -->
+        <div class="monitor-tab-content active" id="tab-watched">
+          <div id="port-watched-list" class="port-list"></div>
+          <div class="port-add-row">
+            <input type="number" id="port-add-input" placeholder="输入端口号 1-65535" min="1" max="65535" />
+            <button id="port-add-btn">添加</button>
+          </div>
+        </div>
+        <!-- 所有监听 tab -->
+        <div class="monitor-tab-content" id="tab-all-ports">
+          <div class="all-ports-summary" id="all-ports-summary"></div>
+          <div class="proc-table-header">
+            <span class="port-col-port">端口</span>
+            <span class="port-col-cmd">进程</span>
+            <span class="port-col-addr">协议</span>
+            <span class="port-col-user">用户</span>
+            <span class="port-col-pid">PID</span>
+          </div>
+          <div id="all-ports-list" class="proc-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="reminder-center" class="hidden">
+      <div class="monitor-backdrop"></div>
+      <div class="monitor-card monitor-card-wide">
+        <div class="monitor-header">
+          <span>⏰ 提醒中心</span>
+          <button id="reminder-center-close">✕</button>
+        </div>
+        <div class="reminder-add-row">
+          <input type="text" id="reminder-add-title" placeholder="提醒内容，例如：喝水" maxlength="60" />
+          <input type="datetime-local" id="reminder-add-time" />
+          <select id="reminder-rule-type">
+            <option value="one-time">仅一次</option>
+            <option value="daily">每天</option>
+            <option value="weekly">每周</option>
+            <option value="workday">工作日</option>
+          </select>
+          <button id="reminder-add-btn">添加提醒</button>
+        </div>
+        <div id="reminder-list" class="reminder-list"></div>
+      </div>
+    </div>
+
+    <div id="news-panel" class="hidden">
+      <div class="monitor-backdrop"></div>
+      <div class="monitor-card monitor-card-wide">
+        <div class="monitor-header">
+          <span>📰 热点新闻</span>
+          <div class="monitor-header-right">
+            <button id="news-panel-refresh" class="news-refresh-btn">刷新</button>
+            <button id="news-panel-close">✕</button>
+          </div>
+        </div>
+        <div id="news-panel-status" class="news-panel-status">自动每 5 分钟刷新</div>
+        <div id="news-list" class="news-list"></div>
+      </div>
+    </div>
+
+    <div id="todo-list" class="hidden">
+      <div class="monitor-backdrop"></div>
+      <div class="monitor-card monitor-card-wide">
+        <div class="monitor-header">
+          <span>✅ 待办清单</span>
+          <button id="todo-list-close">✕</button>
+        </div>
+        <div class="todo-add-row">
+          <input type="text" id="todo-add-title" placeholder="待办事项，例如：写周报" maxlength="60" />
+          <input type="datetime-local" id="todo-add-due" />
+          <button id="todo-add-btn">添加</button>
+        </div>
+        <div id="todo-items" class="todo-items"></div>
+      </div>
+    </div>
+
+    <div id="settings-modal" class="hidden">
+      <div class="settings-backdrop"></div>
+      <div class="settings-card settings-card-wide">
+        <h3>AI 设置</h3>
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <h4>聊天模型</h4>
+            <p>这里配置聊天使用的主模型。</p>
+          </div>
+          <label>可用模型</label>
+          <div id="model-list"></div>
+          <button id="model-add-btn" class="model-add-btn">+ 添加聊天模型</button>
+          <div id="model-edit-form" class="hidden">
+            <div class="model-edit-divider"></div>
+            <div class="settings-subsection-title">编辑聊天模型</div>
+            <label>显示名称</label>
+            <input type="text" id="edit-model-name" placeholder="如: GPT-4o" />
+            <label>Provider</label>
+            <select id="edit-model-provider">
+              <option value="openai">OpenAI 兼容</option>
+              <option value="anthropic">Anthropic</option>
+            </select>
+            <label>模型 ID</label>
+            <input type="text" id="edit-model-id" placeholder="如: gpt-4o, claude-sonnet-4-20250514" />
+            <label>API Base URL</label>
+            <input type="text" id="edit-model-baseurl" placeholder="https://api.openai.com/v1" />
+            <label>API Key</label>
+            <input type="password" id="edit-model-apikey" placeholder="sk-..." />
+            <div class="model-edit-actions">
+              <button id="edit-model-save">保存</button>
+              <button id="edit-model-cancel">取消</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-header">
+            <h4>翻译模型</h4>
+            <p>只影响划词翻译，不影响聊天回复。</p>
+          </div>
+          <label>翻译来源</label>
+          <select id="setting-translate-model-mode">
+            <option value="same">跟随聊天模型</option>
+            <option value="custom">自定义本地小模型（OpenAI 兼容）</option>
+          </select>
+          <div id="setting-translate-custom" class="hidden">
+            <label>翻译 API Base URL</label>
+            <input type="text" id="setting-translate-baseurl" placeholder="http://127.0.0.1:11434/v1" />
+            <label>翻译模型 ID</label>
+            <input type="text" id="setting-translate-model" placeholder="如: qwen2.5:7b" />
+            <label>翻译 API Key</label>
+            <input type="password" id="setting-translate-apikey" placeholder="本地服务可填任意非空值" />
+          </div>
+        </div>
+
+        <div class="settings-divider"></div>
+        <div class="settings-section-header">
+          <h4>通用设置</h4>
+          <p>这些选项会影响机器人名称和聊天提示词。</p>
+        </div>
+        <label>机器人名字</label>
+        <input type="text" id="setting-pet-name" placeholder="小机（留空使用默认）" />
+        <label>系统提示词</label>
+        <textarea id="setting-system-prompt" placeholder="留空使用默认提示词" rows="3"></textarea>
+        <div class="settings-actions">
+          <button id="setting-save">保存</button>
+          <button id="setting-cancel">取消</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="vendor/three-global.js"></script>
+    <script src="renderer-dom.js"></script>
+    <script src="renderer-robot3d.js"></script>
+    <script src="renderer-monitor.js"></script>
+    <script src="renderer-settings.js"></script>
+    <script src="renderer-chat.js"></script>
+    <script src="renderer-reminder.js"></script>
+    <script src="renderer-news.js"></script>
+    <script src="renderer-translate.js"></script>
+    <script src="renderer-effects.js"></script>
+    <script src="renderer-todo.js"></script>
+    <script src="renderer.js"></script>
+  </body>
 </html>

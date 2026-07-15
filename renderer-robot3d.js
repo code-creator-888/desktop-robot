@@ -188,10 +188,7 @@
       orbitRing.rotation.z = -0.38;
       rig.add(orbitRing);
 
-      const headShell = new THREE.Mesh(
-        createRoundedExtrudedGeometry(2.02, 1.32, 0.92, 0.32, 0.075, 9),
-        pearlMaterial
-      );
+      const headShell = new THREE.Mesh(createRoundedExtrudedGeometry(2.02, 1.32, 0.92, 0.32, 0.075, 9), pearlMaterial);
       headShell.position.set(0, 0.62, 0);
       bodyShell.add(headShell);
 
@@ -225,10 +222,7 @@
       expressionLine.position.set(0, 0.43, 0.68);
       bodyShell.add(expressionLine);
 
-      const torsoShell = new THREE.Mesh(
-        createRoundedExtrudedGeometry(1.4, 0.92, 0.78, 0.22, 0.06, 7),
-        pearlMaterial
-      );
+      const torsoShell = new THREE.Mesh(createRoundedExtrudedGeometry(1.4, 0.92, 0.78, 0.22, 0.06, 7), pearlMaterial);
       torsoShell.position.set(0, -0.68, 0);
       bodyShell.add(torsoShell);
 
@@ -373,7 +367,9 @@
         robot3D.thrusterGlowRight.scale.setScalar(1.04 - pulse * 0.24);
         robot3D.finLeft.rotation.z = -0.42 + Math.sin(timestamp * 0.002) * 0.045;
         robot3D.finRight.rotation.z = 0.42 - Math.sin(timestamp * 0.002) * 0.045;
-        robot3D.shadow.scale.setScalar(1 - Math.min(0.28, Math.abs(state.currentX) * 0.34 + Math.abs(state.currentY) * 0.24));
+        robot3D.shadow.scale.setScalar(
+          1 - Math.min(0.28, Math.abs(state.currentX) * 0.34 + Math.abs(state.currentY) * 0.24)
+        );
 
         robot3D.renderer.render(robot3D.scene, robot3D.camera);
         robot3D.animationId = requestAnimationFrame(animate);

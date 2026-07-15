@@ -32,7 +32,11 @@ test('sendMessage keeps thinking state until fallback pipeline ends', () => {
   const body = extractFunctionBody(source, 'async function sendMessage() {');
 
   assert.match(body, /setThinking\(true\)\s*;/, 'sendMessage should set thinking=true');
-  assert.match(body, /try\s*\{[\s\S]*\}\s*finally\s*\{[\s\S]*setThinking\(false\)\s*;[\s\S]*\}/, 'thinking=false should only be reset in finally');
+  assert.match(
+    body,
+    /try\s*\{[\s\S]*\}\s*finally\s*\{[\s\S]*setThinking\(false\)\s*;[\s\S]*\}/,
+    'thinking=false should only be reset in finally'
+  );
 
   const resets = body.match(/setThinking\(false\)\s*;/g) || [];
   assert.equal(resets.length, 1, 'should reset thinking=false exactly once');
@@ -45,11 +49,17 @@ test('chat cancellation stops model requests and session writes', () => {
   assert.match(source, /const cancelledChatRequestIds = new Set\(\);/);
   assert.match(source, /function isChatRequestCancelled\(requestId\)/);
   assert.match(source, /function startNewSession\(\) \{\s*cancelActiveChatRequest\(\);/);
-  assert.match(source, /function switchToSession\(id\) \{\s*if \(currentSessionId === id\) return;\s*cancelActiveChatRequest\(\);/);
+  assert.match(
+    source,
+    /function switchToSession\(id\) \{\s*if \(currentSessionId === id\) return;\s*cancelActiveChatRequest\(\);/
+  );
   assert.match(source, /const requestSessionId = currentSessionId;/);
   assert.match(sendBody, /if \(isChatRequestCancelled\(requestId\)\) return;/);
   assert.doesNotMatch(sendBody, /webFirstResult|toolCallResult|fallbackResult/);
-  assert.match(sendBody, /if \(currentSessionId === requestSessionId\) \{\s*saveCurrentSession\(\);\s*renderSessionBar\(\);\s*\}/);
+  assert.match(
+    sendBody,
+    /if \(currentSessionId === requestSessionId\) \{\s*saveCurrentSession\(\);\s*renderSessionBar\(\);\s*\}/
+  );
 });
 
 test('sendMessage no longer runs chat web search fallback paths', () => {
@@ -145,7 +155,10 @@ test('chat closes from outside screen clicks like news panel', () => {
   assert.match(renderer, /if \(!isChatOpen\) return;/);
   assert.match(renderer, /if \(isScreenPointInsideElement\(chatPanel, point\.x, point\.y\)\) return;/);
   assert.match(renderer, /closeChat\(\);/);
-  assert.match(preload, /onGlobalMouseDown:\s*\(cb\) => ipcRenderer\.on\('global-mouse-down', \(_, point\) => cb\(point\)\)/);
+  assert.match(
+    preload,
+    /onGlobalMouseDown:\s*\(cb\) => ipcRenderer\.on\('global-mouse-down', \(_, point\) => cb\(point\)\)/
+  );
   assert.match(main, /win\.webContents\.send\('global-mouse-down', \{ x: e\.x, y: e\.y \}\)/);
   assert.match(chat, /const \{ chatPanel, chatBackdrop, chatMessages, chatInput, chatSend, chatClose \} = elements;/);
   assert.match(chat, /chatBackdrop\.classList\.remove\('hidden'\);/);
@@ -192,10 +205,21 @@ test('idle animations resume only when no UI remains open', () => {
   assert.match(source, /function initRobot3D\(\)/);
   assert.match(source, /window\.Robot3D\.createRobot3DController/);
   assert.match(robot3d, /disposeRobot3D\(\);\s*if \(!robot3DHost\) return null;/);
-  assert.doesNotMatch(robot3d, /const THREE = window\.THREE;[\s\S]*function initRobot3D\(\)/, 'THREE should not be captured before module script finishes');
-  assert.match(robot3d, /function initRobot3D\(\) \{[\s\S]*const THREE = window\.THREE;/, 'THREE should be read lazily during init');
+  assert.doesNotMatch(
+    robot3d,
+    /const THREE = window\.THREE;[\s\S]*function initRobot3D\(\)/,
+    'THREE should not be captured before module script finishes'
+  );
+  assert.match(
+    robot3d,
+    /function initRobot3D\(\) \{[\s\S]*const THREE = window\.THREE;/,
+    'THREE should be read lazily during init'
+  );
   assert.match(robot3d, /if \(!window\.THREE \|\| typeof THREE\.WebGLRenderer !== 'function'\)/);
-  assert.match(robot3d, /try \{\s*renderer = new THREE\.WebGLRenderer\(\{ alpha: true, antialias: true \}\);\s*\} catch \(error\)/);
+  assert.match(
+    robot3d,
+    /try \{\s*renderer = new THREE\.WebGLRenderer\(\{ alpha: true, antialias: true \}\);\s*\} catch \(error\)/
+  );
   assert.match(source, /window\.addEventListener\('three-ready', initRobot3D, \{ once: true \}\)/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /id="idle-effects"/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /class="idle-yawn-hand"/);
@@ -203,10 +227,22 @@ test('idle animations resume only when no UI remains open', () => {
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /class="idle-self-hand right"/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /id="pet-stage"/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /id="pet-depth-stack"/);
-  assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /type="module" src="vendor\/three-global\.js"/);
-  assert.match(fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'), /#pet-container\.idle-yawning \.idle-mouth/);
-  assert.match(fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'), /#pet-container\.idle-yawning \.idle-yawn-hand/);
-  assert.match(fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'), /#pet-container\.idle-rubbing \.idle-self-hand\.left/);
+  assert.match(
+    fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'),
+    /type="module" src="vendor\/three-global\.js"/
+  );
+  assert.match(
+    fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'),
+    /#pet-container\.idle-yawning \.idle-mouth/
+  );
+  assert.match(
+    fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'),
+    /#pet-container\.idle-yawning \.idle-yawn-hand/
+  );
+  assert.match(
+    fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'),
+    /#pet-container\.idle-rubbing \.idle-self-hand\.left/
+  );
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'), /#pet-stage \{/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8'), /#robot-3d-host \{/);
 });
@@ -214,18 +250,61 @@ test('idle animations resume only when no UI remains open', () => {
 test('switch-model action keeps chat input editable', () => {
   const source = fs.readFileSync(rendererPath, 'utf8');
   assert.match(source, /action\.startsWith\('switch-model:'\)/, 'switch-model handler should exist');
-  assert.match(source, /if\s*\(isChatOpen\)\s*\{[\s\S]*setMouseCapture\(true\)[\s\S]*chatInput\.focus\(\)/, 'switch-model should keep capture and refocus chat input');
+  assert.match(
+    source,
+    /if\s*\(isChatOpen\)\s*\{[\s\S]*setMouseCapture\(true\)[\s\S]*chatInput\.focus\(\)/,
+    'switch-model should keep capture and refocus chat input'
+  );
 });
 
 test('mousemove passthrough should not disable capture while chat is open', () => {
   const source = fs.readFileSync(rendererPath, 'utf8');
-  assert.match(source, /const overChatPanel = !!\(el && el\.closest\('#chat-panel'\)\);/, 'mousemove handler should detect chat panel hover');
-  assert.match(source, /const overReminderCenter = !!\(el && el\.closest\('#reminder-center'\)\);/, 'mousemove handler should detect reminder center hover');
-  assert.match(source, /if \(isChatOpen\) \{\s*resetPetPerspective\(\);/, 'chat open should stop pet perspective while preserving hover hit-testing');
-  assert.match(source, /overChatPanel \|\|[\s\S]*overReminderCenter \|\|[\s\S]*overSettingsModal \|\|[\s\S]*overTodoList \|\|[\s\S]*overSystemMonitor \|\|[\s\S]*overPortMonitor \|\|[\s\S]*overSpeechBubble/, 'mousemove handler should keep capture only for interactive surfaces');
+  assert.match(
+    source,
+    /const overChatPanel = !!\(el && el\.closest\('#chat-panel'\)\);/,
+    'mousemove handler should detect chat panel hover'
+  );
+  assert.match(
+    source,
+    /const overReminderCenter = !!\(el && el\.closest\('#reminder-center'\)\);/,
+    'mousemove handler should detect reminder center hover'
+  );
+  assert.match(
+    source,
+    /if \(isChatOpen\) \{\s*resetPetPerspective\(\);/,
+    'chat open should stop pet perspective while preserving hover hit-testing'
+  );
+  assert.match(
+    source,
+    /overChatPanel \|\|[\s\S]*overReminderCenter \|\|[\s\S]*overSettingsModal \|\|[\s\S]*overTodoList \|\|[\s\S]*overSystemMonitor \|\|[\s\S]*overPortMonitor \|\|[\s\S]*overSpeechBubble/,
+    'mousemove handler should keep capture only for interactive surfaces'
+  );
 });
 
 test('render toggles thinking-tech class by isThinking', () => {
   const source = fs.readFileSync(rendererPath, 'utf8');
   assert.match(source, /container\.classList\.toggle\('thinking-tech',\s*isThinking\)/);
+});
+
+test('renderer centralizes non-chat overlay state for capture and idle guards', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  const overlayBody = extractFunctionBody(source, 'function isInteractionOverlayOpen() {');
+  const captureBody = extractFunctionBody(source, 'function updateMouseCapture() {');
+  const interactionBody = extractFunctionBody(source, 'function isUserInteracting() {');
+
+  for (const state of [
+    'isSettingsOpen',
+    'isMonitorOpen',
+    'isReminderOpen',
+    'isNewsOpen',
+    'isTodoOpen',
+    'isDblClickAnimating'
+  ]) {
+    assert.match(overlayBody, new RegExp(state));
+  }
+  assert.match(overlayBody, /!snoozeBar\.classList\.contains\('hidden'\)/);
+  assert.match(overlayBody, /!speechBubble\.classList\.contains\('hidden'\)/);
+  assert.match(captureBody, /isDragging \|\| isInteractionOverlayOpen\(\)/);
+  assert.match(source, /if \(isInteractionOverlayOpen\(\)\) \{\s*resetPetPerspective\(\);/);
+  assert.match(interactionBody, /isDragging \|\| isChatOpen \|\| isThinking \|\| isInteractionOverlayOpen\(\)/);
 });

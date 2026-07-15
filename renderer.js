@@ -9,7 +9,8 @@ const PETS = {
 const PET_PERSONALITIES = {
   robot: {
     name: '机器人',
-    personality: '一个可爱的小机器人，说话带点机械感但非常贴心，喜欢用简洁的语句回复，偶尔会说一些程序术语，对主人很忠诚'
+    personality:
+      '一个可爱的小机器人，说话带点机械感但非常贴心，喜欢用简洁的语句回复，偶尔会说一些程序术语，对主人很忠诚'
   }
 };
 
@@ -111,11 +112,14 @@ function parseSettingsSafe() {
   return settingsController ? settingsController.parseSettingsSafe() : {};
 }
 
-window.electronAPI.getEnvConfig().then((cfg) => {
-  envConfig = cfg || { baseUrl: '', model: '', apiKey: '' };
-}).catch(() => {
-  envConfig = { baseUrl: '', model: '', apiKey: '' };
-});
+window.electronAPI
+  .getEnvConfig()
+  .then((cfg) => {
+    envConfig = cfg || { baseUrl: '', model: '', apiKey: '' };
+  })
+  .catch(() => {
+    envConfig = { baseUrl: '', model: '', apiKey: '' };
+  });
 
 function getPet() {
   return PETS[currentPet];
@@ -156,8 +160,8 @@ function render() {
   });
   currentPetSrc = pet.src;
 
-  const dblEffect = ['dbl-holo-scan', 'dbl-gravity-pulse', 'dbl-orbit-flare'].find(c => petEl.classList.contains(c));
-  const idleActionClass = ['yawn-yawn', 'yawn-stretch', 'yawn-rub-eyes'].find(c => petEl.classList.contains(c));
+  const dblEffect = ['dbl-holo-scan', 'dbl-gravity-pulse', 'dbl-orbit-flare'].find((c) => petEl.classList.contains(c));
+  const idleActionClass = ['yawn-yawn', 'yawn-stretch', 'yawn-rub-eyes'].find((c) => petEl.classList.contains(c));
   petEl.className = '';
   if (dblEffect) petEl.classList.add(dblEffect);
   if (idleActionClass) petEl.classList.add(idleActionClass);
@@ -429,10 +433,10 @@ function sendMessage() {
 
 // --- Tab switching helper ---
 function switchTab(panelEl, tabName) {
-  panelEl.querySelectorAll('.monitor-tab').forEach(btn => {
+  panelEl.querySelectorAll('.monitor-tab').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.tab === tabName);
   });
-  panelEl.querySelectorAll('.monitor-tab-content').forEach(el => {
+  panelEl.querySelectorAll('.monitor-tab-content').forEach((el) => {
     el.classList.toggle('active', el.id === 'tab-' + tabName);
   });
 }
@@ -500,7 +504,7 @@ function closeSystemMonitor() {
   updateMouseCapture();
 }
 
-systemMonitor.querySelectorAll('.monitor-tab').forEach(btn => {
+systemMonitor.querySelectorAll('.monitor-tab').forEach((btn) => {
   btn.addEventListener('click', () => switchTab(systemMonitor, btn.dataset.tab));
 });
 
@@ -568,7 +572,7 @@ function closePortMonitor() {
   updateMouseCapture();
 }
 
-portMonitor.querySelectorAll('.monitor-tab').forEach(btn => {
+portMonitor.querySelectorAll('.monitor-tab').forEach((btn) => {
   btn.addEventListener('click', () => switchTab(portMonitor, btn.dataset.tab));
 });
 
@@ -619,8 +623,8 @@ window.addEventListener('mousemove', (e) => {
   dragStartY = e.clientY;
 
   const rect = container.getBoundingClientRect();
-  container.style.left = (rect.left + dx) + 'px';
-  container.style.bottom = (window.innerHeight - rect.bottom - dy) + 'px';
+  container.style.left = rect.left + dx + 'px';
+  container.style.bottom = window.innerHeight - rect.bottom - dy + 'px';
   reportRobotBounds();
 });
 
@@ -705,8 +709,8 @@ function updatePetPerspective(clientX, clientY) {
   });
 }
 
-function updateMouseCapture() {
-  const shouldCapture = isDragging ||
+function isInteractionOverlayOpen() {
+  return (
     isSettingsOpen ||
     isMonitorOpen ||
     isReminderOpen ||
@@ -714,8 +718,12 @@ function updateMouseCapture() {
     isTodoOpen ||
     isDblClickAnimating ||
     !snoozeBar.classList.contains('hidden') ||
-    !speechBubble.classList.contains('hidden');
-  setMouseCapture(shouldCapture);
+    !speechBubble.classList.contains('hidden')
+  );
+}
+
+function updateMouseCapture() {
+  setMouseCapture(isDragging || isInteractionOverlayOpen());
 }
 
 let pendingMouseMove = null;
@@ -726,13 +734,17 @@ function handleRobotMouseMove(clientX, clientY) {
     resetPetPerspective();
     return;
   }
-  if (isSettingsOpen || isMonitorOpen || isReminderOpen || isNewsOpen || isTodoOpen || isDblClickAnimating || !snoozeBar.classList.contains('hidden') || !speechBubble.classList.contains('hidden')) {
+  if (isInteractionOverlayOpen()) {
     resetPetPerspective();
     return;
   }
   const rect = container.getBoundingClientRect();
   const pad = 20;
-  const overContainer = clientX >= rect.left - pad && clientX <= rect.right + pad && clientY >= rect.top - pad && clientY <= rect.bottom + pad;
+  const overContainer =
+    clientX >= rect.left - pad &&
+    clientX <= rect.right + pad &&
+    clientY >= rect.top - pad &&
+    clientY <= rect.bottom + pad;
   const el = document.elementFromPoint(clientX, clientY);
   const overChatPanel = !!(el && el.closest('#chat-panel'));
   const overReminderCenter = !!(el && el.closest('#reminder-center'));
@@ -742,9 +754,12 @@ function handleRobotMouseMove(clientX, clientY) {
   const overPortMonitor = !!(el && el.closest('#port-monitor'));
   // Use bounding rect for speech bubble since it overflows the container (top: -50px)
   const sbRect = speechBubble.getBoundingClientRect();
-  const overSpeechBubble = !speechBubble.classList.contains('hidden') &&
-    clientX >= sbRect.left && clientX <= sbRect.right &&
-    clientY >= sbRect.top && clientY <= sbRect.bottom;
+  const overSpeechBubble =
+    !speechBubble.classList.contains('hidden') &&
+    clientX >= sbRect.left &&
+    clientX <= sbRect.right &&
+    clientY >= sbRect.top &&
+    clientY <= sbRect.bottom;
   if (isChatOpen) {
     resetPetPerspective();
   } else if (overContainer) {
@@ -754,13 +769,13 @@ function handleRobotMouseMove(clientX, clientY) {
   }
   setMouseCapture(
     overContainer ||
-    overChatPanel ||
-    overReminderCenter ||
-    overSettingsModal ||
-    overTodoList ||
-    overSystemMonitor ||
-    overPortMonitor ||
-    overSpeechBubble
+      overChatPanel ||
+      overReminderCenter ||
+      overSettingsModal ||
+      overTodoList ||
+      overSystemMonitor ||
+      overPortMonitor ||
+      overSpeechBubble
   );
 }
 
@@ -869,15 +884,10 @@ todoController.init();
 translateController.bindTranslateEvents();
 
 // --- Click interaction / effects ---
-const SINGLE_CLICK_LINES = [
-  () => newsController.nextHotNewsLine(),
-];
+const SINGLE_CLICK_LINES = [() => newsController.nextHotNewsLine()];
 
 function isUserInteracting() {
-  return isDragging || isChatOpen || isSettingsOpen || isMonitorOpen ||
-    isReminderOpen || isNewsOpen || isTodoOpen || isDblClickAnimating || isThinking ||
-    !snoozeBar.classList.contains('hidden') ||
-    !speechBubble.classList.contains('hidden');
+  return isDragging || isChatOpen || isThinking || isInteractionOverlayOpen();
 }
 
 const effectsController = window.RobotEffects.createEffectsController({
@@ -916,7 +926,7 @@ effectsController.bindRobotClick();
 
 // --- Init ---
 reminderController.init();
-container.style.left = (window.innerWidth * 0.90) + 'px';
+container.style.left = window.innerWidth * 0.9 + 'px';
 render();
 if (window.THREE) {
   initRobot3D();

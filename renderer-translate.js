@@ -1,10 +1,6 @@
 (function () {
   function createTranslateController(deps) {
-    const {
-      getTranslateModelConfig,
-      showSpeech,
-      appendTranslateMessage
-    } = deps;
+    const { getTranslateModelConfig, showSpeech, appendTranslateMessage } = deps;
 
     function containsChinese(text) {
       return /[\u4e00-\u9fff]/.test(text || '');

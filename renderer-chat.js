@@ -45,7 +45,11 @@
     }
 
     function loadSessions() {
-      try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; } catch { return []; }
+      try {
+        return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || [];
+      } catch {
+        return [];
+      }
     }
 
     function saveSessions(sessions) {
@@ -58,14 +62,20 @@
         return;
       }
       let sessions = loadSessions();
-      const idx = sessions.findIndex(s => s.id === currentSessionId);
+      const idx = sessions.findIndex((s) => s.id === currentSessionId);
       const preview = chatMessagesList[chatMessagesList.length - 1]?.content?.slice(0, 30) || '';
       if (idx >= 0) {
         sessions[idx].messages = chatMessagesList;
         sessions[idx].preview = preview;
         sessions[idx].updatedAt = Date.now();
       } else {
-        sessions.unshift({ id: currentSessionId, messages: chatMessagesList, preview, createdAt: currentSessionId, updatedAt: Date.now() });
+        sessions.unshift({
+          id: currentSessionId,
+          messages: chatMessagesList,
+          preview,
+          createdAt: currentSessionId,
+          updatedAt: Date.now()
+        });
       }
       sessions.sort((a, b) => b.updatedAt - a.updatedAt);
       if (sessions.length > MAX_SESSIONS) sessions = sessions.slice(0, MAX_SESSIONS);
@@ -86,7 +96,7 @@
       cancelActiveChatRequest();
       saveCurrentSession();
       const sessions = loadSessions();
-      const session = sessions.find(s => s.id === id);
+      const session = sessions.find((s) => s.id === id);
       if (!session) return;
       currentSessionId = session.id;
       chatMessagesList = session.messages || [];
@@ -97,7 +107,7 @@
       const lastId = parseInt(localStorage.getItem(LAST_SESSION_KEY), 10);
       if (lastId) {
         const sessions = loadSessions();
-        const last = sessions.find(s => s.id === lastId);
+        const last = sessions.find((s) => s.id === lastId);
         if (last) {
           currentSessionId = last.id;
           chatMessagesList = last.messages || [];
@@ -153,7 +163,14 @@
       const bar = document.getElementById('chat-session-bar');
       if (!bar) return;
       const sessions = loadSessions();
-      const date = currentSessionId ? new Date(currentSessionId).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      const date = currentSessionId
+        ? new Date(currentSessionId).toLocaleDateString('zh-CN', {
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : '';
       const msgCount = chatMessagesList.length;
 
       bar.innerHTML = '';
@@ -196,7 +213,7 @@
 
     function deleteSession(id) {
       let sessions = loadSessions();
-      sessions = sessions.filter(s => s.id !== id);
+      sessions = sessions.filter((s) => s.id !== id);
       saveSessions(sessions);
 
       if (currentSessionId === id) {
@@ -222,18 +239,26 @@
 
     function toggleSessionList(bar, sessions) {
       const existing = document.getElementById('session-list-dropdown');
-      if (existing) { existing.remove(); return; }
+      if (existing) {
+        existing.remove();
+        return;
+      }
 
       const dropdown = document.createElement('div');
       dropdown.id = 'session-list-dropdown';
 
-      sessions.forEach(s => {
+      sessions.forEach((s) => {
         const item = document.createElement('div');
         item.className = 'session-list-item' + (s.id === currentSessionId ? ' active' : '');
 
         const info = document.createElement('div');
         info.className = 'session-item-info';
-        const d = new Date(s.id).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const d = new Date(s.id).toLocaleDateString('zh-CN', {
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
         appendTextElement(info, 'span', 'session-item-date', d);
         appendTextElement(info, 'span', 'session-item-preview', s.preview || '空对话');
         info.addEventListener('click', () => {
@@ -294,10 +319,7 @@
       render();
 
       try {
-        const messages = [
-          { role: 'system', content: getSystemPrompt() },
-          ...chatMessagesList.slice(-10)
-        ];
+        const messages = [{ role: 'system', content: getSystemPrompt() }, ...chatMessagesList.slice(-10)];
 
         const result = await window.electronAPI.chat({
           requestId,

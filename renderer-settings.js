@@ -49,7 +49,7 @@
     }
 
     function isProtectedSecretValue(value) {
-      return typeof value === 'string' && SECRET_PREFIXES.some(prefix => value.startsWith(prefix));
+      return typeof value === 'string' && SECRET_PREFIXES.some((prefix) => value.startsWith(prefix));
     }
 
     async function protectSecretValue(value) {
@@ -84,14 +84,16 @@
           const provider = old.provider || (old.baseUrl && old.baseUrl.includes('anthropic') ? 'anthropic' : 'openai');
           const id = Date.now().toString();
           saveModelConfigs({
-            models: [{
-              id,
-              name: old.model || '默认模型',
-              provider,
-              model: old.model || '',
-              baseUrl: old.baseUrl || '',
-              apiKey: await protectSecretValue(old.apiKey || '')
-            }],
+            models: [
+              {
+                id,
+                name: old.model || '默认模型',
+                provider,
+                model: old.model || '',
+                baseUrl: old.baseUrl || '',
+                apiKey: await protectSecretValue(old.apiKey || '')
+              }
+            ],
             activeId: id
           });
         }
@@ -136,14 +138,14 @@
 
     function getActiveModel() {
       const configs = getModelConfigs();
-      return configs.models.find(m => m.id === configs.activeId) || null;
+      return configs.models.find((m) => m.id === configs.activeId) || null;
     }
 
     function syncModelMenuState() {
       const configs = getModelConfigs();
       window.electronAPI.setModelMenuState({
         activeId: configs.activeId || '',
-        models: (configs.models || []).map(m => ({
+        models: (configs.models || []).map((m) => ({
           id: m.id,
           name: m.name || m.model || '未命名模型'
         }))
@@ -152,7 +154,7 @@
 
     function switchModel(id) {
       const configs = getModelConfigs();
-      if (configs.models.some(m => m.id === id)) {
+      if (configs.models.some((m) => m.id === id)) {
         configs.activeId = id;
         saveModelConfigs(configs);
         updateModelIndicator();
@@ -170,7 +172,7 @@
         modelListEl.appendChild(empty);
         return;
       }
-      configs.models.forEach(m => {
+      configs.models.forEach((m) => {
         const item = document.createElement('div');
         item.className = 'model-item' + (m.id === configs.activeId ? ' active' : '');
 
@@ -222,13 +224,13 @@
       editingModelId = id || null;
       if (id) {
         const configs = getModelConfigs();
-        const m = configs.models.find(x => x.id === id);
+        const m = configs.models.find((x) => x.id === id);
         if (!m) return;
         editModelName.value = m.name;
         editModelProvider.value = m.provider || 'openai';
         editModelId.value = m.model || '';
         editModelBaseUrl.value = m.baseUrl || '';
-        editModelApiKey.value = isProtectedSecretValue(m.apiKey) ? '' : (m.apiKey || '');
+        editModelApiKey.value = isProtectedSecretValue(m.apiKey) ? '' : m.apiKey || '';
         editModelApiKey.placeholder = m.apiKey ? '留空保留现有 API Key' : 'sk-...';
       } else {
         editModelName.value = '';
@@ -255,7 +257,7 @@
       const configs = getModelConfigs();
       const inputApiKey = editModelApiKey.value.trim();
       if (editingModelId) {
-        const m = configs.models.find(x => x.id === editingModelId);
+        const m = configs.models.find((x) => x.id === editingModelId);
         if (m) {
           m.name = name;
           m.provider = editModelProvider.value;
@@ -284,7 +286,7 @@
 
     function deleteModel(id) {
       const configs = getModelConfigs();
-      configs.models = configs.models.filter(m => m.id !== id);
+      configs.models = configs.models.filter((m) => m.id !== id);
       if (configs.activeId === id) {
         configs.activeId = configs.models.length > 0 ? configs.models[0].id : '';
       }
@@ -319,7 +321,9 @@
       settingTranslateModelMode.value = translateModelMode;
       settingTranslateBaseUrl.value = settings.translateBaseUrl || '';
       settingTranslateModel.value = settings.translateModel || '';
-      settingTranslateApiKey.value = isProtectedSecretValue(settings.translateApiKey) ? '' : (settings.translateApiKey || '');
+      settingTranslateApiKey.value = isProtectedSecretValue(settings.translateApiKey)
+        ? ''
+        : settings.translateApiKey || '';
       settingTranslateApiKey.placeholder = settings.translateApiKey ? '留空保留现有 API Key' : '本地服务可填任意非空值';
       updateTranslateSettingsVisibility();
       renderModelList();
@@ -349,7 +353,9 @@
         translateModelMode: settingTranslateModelMode.value === 'custom' ? 'custom' : 'same',
         translateBaseUrl: settingTranslateBaseUrl.value.trim(),
         translateModel: settingTranslateModel.value.trim(),
-        translateApiKey: translateApiKeyInput ? await protectSecretValue(translateApiKeyInput) : (existing.translateApiKey || '')
+        translateApiKey: translateApiKeyInput
+          ? await protectSecretValue(translateApiKeyInput)
+          : existing.translateApiKey || ''
       };
       localStorage.setItem('aiSettings', JSON.stringify(settings));
       closeSettings();

@@ -2,7 +2,7 @@
 
 /**
  * Desktop Robot - Quick start script
- * 
+ *
  * Usage:
  *   robot-start        Start the desktop robot
  *   robot-start --help Show this help message

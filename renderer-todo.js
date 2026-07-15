@@ -11,14 +11,7 @@
       updateMouseCapture,
       setTodoOpen
     } = deps;
-    const {
-      todoList,
-      todoListClose,
-      todoAddTitle,
-      todoAddDue,
-      todoAddBtn,
-      todoItemsEl
-    } = elements;
+    const { todoList, todoListClose, todoAddTitle, todoAddDue, todoAddBtn, todoItemsEl } = elements;
     const { appendTextElement, appendButton } = dom;
 
     let todoItems = [];
@@ -32,7 +25,7 @@
         const items = JSON.parse(raw);
         if (!Array.isArray(items)) return [];
         return items
-          .filter(item => item && item.id && item.title)
+          .filter((item) => item && item.id && item.title)
           .map((item) => ({ ...item, dueAt: item.dueAt || null }));
       } catch {
         return [];
@@ -47,7 +40,17 @@
       const d = new Date(iso);
       if (Number.isNaN(d.getTime())) return '';
       const pad = (n) => String(n).padStart(2, '0');
-      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      return (
+        d.getFullYear() +
+        '-' +
+        pad(d.getMonth() + 1) +
+        '-' +
+        pad(d.getDate()) +
+        'T' +
+        pad(d.getHours()) +
+        ':' +
+        pad(d.getMinutes())
+      );
     }
 
     function formatDueDate(iso) {
@@ -175,7 +178,10 @@
       const now = Date.now();
       todoItemsEl.querySelectorAll('.todo-countdown').forEach((el) => {
         const ts = Number(el.dataset.dueTs);
-        if (!ts || Number.isNaN(ts)) { el.textContent = ''; return; }
+        if (!ts || Number.isNaN(ts)) {
+          el.textContent = '';
+          return;
+        }
         const remaining = ts - now;
         el.textContent = '⏳ ' + formatCountdown(remaining);
         el.classList.toggle('countdown-urgent', remaining > 0 && remaining <= 60 * 60 * 1000);
@@ -190,7 +196,10 @@
     }
 
     function stopCountdownTicker() {
-      if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
     }
 
     function addTodoItem() {
@@ -213,7 +222,7 @@
     }
 
     function toggleTodoDone(id) {
-      const item = todoItems.find(x => x.id === id);
+      const item = todoItems.find((x) => x.id === id);
       if (!item) return;
       item.status = item.status === 'done' ? 'pending' : 'done';
       item.completedAt = item.status === 'done' ? new Date().toISOString() : null;
@@ -222,13 +231,13 @@
     }
 
     function deleteTodoItem(id) {
-      todoItems = todoItems.filter(x => x.id !== id);
+      todoItems = todoItems.filter((x) => x.id !== id);
       saveTodoItems();
       renderTodoList();
     }
 
     function setTodoDueDate(id, isoOrNull) {
-      const item = todoItems.find(x => x.id === id);
+      const item = todoItems.find((x) => x.id === id);
       if (!item) return;
       item.dueAt = isoOrNull;
       editingDueId = null;
