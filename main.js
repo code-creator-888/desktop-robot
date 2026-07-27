@@ -17,6 +17,7 @@ const { createSecretStore } = require('./lib/secrets');
 const { createChatIpc } = require('./lib/chat-ipc');
 const { createPortMonitor } = require('./lib/port-monitor');
 const { createSystemMonitor } = require('./lib/system-monitor');
+const { createDesktopCare } = require('./lib/desktop-care');
 const { createWebSearchIpc } = require('./lib/web-search-ipc');
 const execFileAsync = util.promisify(execFile);
 
@@ -42,6 +43,18 @@ const LISTENING_PROCESSES_CACHE_TTL_MS = 2000;
 
 const secretStore = createSecretStore(safeStorage);
 const { protectSecret, unprotectSecret } = secretStore;
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!hasSingleInstanceLock) {
+  app.quit();
+}
+
+app.on('second-instance', () => {
+  if (win && !win.isDestroyed()) {
+    win.show();
+    win.focus();
+  }
+});
 
 function normalizeModelMenuState(state) {
   if (!state || typeof state !== 'object' || Array.isArray(state)) {
@@ -235,6 +248,7 @@ async function buildRobotMenuAsync() {
       ]
     },
     { type: 'separator' },
+    { label: '🛡️ 电脑管家', click: () => win && win.webContents.send('menu-action', 'desktop-care') },
     { label: '📰 热点新闻', click: () => win && win.webContents.send('menu-action', 'news-panel') },
     { label: '📊 系统监控', click: () => win && win.webContents.send('menu-action', 'system-monitor') },
     { label: '🔌 端口监控', click: () => win && win.webContents.send('menu-action', 'port-monitor') },
@@ -247,7 +261,30 @@ async function buildRobotMenuAsync() {
   return Menu.buildFromTemplate(items);
 }
 
+function popupRobotMenuAtScreenPoint(screenX, screenY) {
+  if (!win || win.isDestroyed()) return;
+  win.webContents.send('set-ignore-mouse-events', false);
+  win.setIgnoreMouseEvents(false);
+  // Defer native menu opening until the uiohook mouseup event has fully unwound,
+  // otherwise the same release can immediately dismiss the menu on macOS.
+  setTimeout(async () => {
+    if (!win || win.isDestroyed()) return;
+    const menu = await buildRobotMenuAsync();
+    if (!win || win.isDestroyed()) return;
+    menu.popup({
+      window: win,
+      x: screenX - win.getBounds().x,
+      y: screenY - win.getBounds().y,
+      callback: () => {
+        if (win && !win.isDestroyed()) win.webContents.send('sync-mouse-capture');
+      }
+    });
+  }, 80);
+}
+
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return;
+
   createWindow();
 
   const icon = nativeImage.createEmpty();
@@ -299,17 +336,7 @@ app.whenReady().then(() => {
       if (!robotBounds || !win) return;
       const { x, y, width, height } = robotBounds;
       if (e.x >= x && e.x <= x + width && e.y >= y && e.y <= y + height) {
-        win.webContents.send('set-ignore-mouse-events', false);
-        win.setIgnoreMouseEvents(false);
-        const menu = await buildRobotMenuAsync();
-        menu.popup({
-          window: win,
-          x: e.x - win.getBounds().x,
-          y: e.y - win.getBounds().y,
-          callback: () => {
-            if (win && !win.isDestroyed()) win.webContents.send('sync-mouse-capture');
-          }
-        });
+        popupRobotMenuAtScreenPoint(e.x, e.y);
       }
     });
 
@@ -408,6 +435,14 @@ const portMonitor = createPortMonitor({
   projectDir: __dirname
 });
 portMonitor.registerIpc();
+
+const desktopCare = createDesktopCare({
+  ipcMain,
+  execFileAsync,
+  systemMonitor,
+  portMonitor
+});
+desktopCare.registerIpc();
 
 app.on('before-quit', () => {
   if (uIOhook && uIOhookStarted) {

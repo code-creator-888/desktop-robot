@@ -57,6 +57,21 @@ const systemMonitor = document.getElementById('system-monitor');
 const systemMonitorClose = document.getElementById('system-monitor-close');
 const portMonitor = document.getElementById('port-monitor');
 const portMonitorClose = document.getElementById('port-monitor-close');
+const desktopCare = document.getElementById('desktop-care');
+const desktopCareClose = document.getElementById('desktop-care-close');
+const desktopCareRefresh = document.getElementById('desktop-care-refresh');
+const desktopCareStatus = document.getElementById('desktop-care-status');
+const desktopCareSuggestions = document.getElementById('desktop-care-suggestions');
+const desktopCareCleanupSummary = document.getElementById('desktop-care-cleanup-summary');
+const desktopCareCleanupList = document.getElementById('desktop-care-cleanup-list');
+const desktopCareStartupSummary = document.getElementById('desktop-care-startup-summary');
+const desktopCareStartupList = document.getElementById('desktop-care-startup-list');
+const desktopCareRisk = document.getElementById('desktop-care-risk');
+const desktopCareCpu = document.getElementById('desktop-care-cpu');
+const desktopCareMem = document.getElementById('desktop-care-mem');
+const desktopCareDisk = document.getElementById('desktop-care-disk');
+const desktopCareServices = document.getElementById('desktop-care-services');
+const desktopCareCleanupSize = document.getElementById('desktop-care-cleanup-size');
 const systemMonitorIntervalSelect = document.getElementById('system-monitor-interval');
 const portMonitorIntervalSelect = document.getElementById('port-monitor-interval');
 const reminderCenter = document.getElementById('reminder-center');
@@ -93,6 +108,7 @@ let isThinking = false;
 let isReminderOpen = false;
 let isNewsOpen = false;
 let isTodoOpen = false;
+let isDesktopCareOpen = false;
 let isDblClickAnimating = false;
 let systemMonitorInterval = null;
 let portMonitorInterval = null;
@@ -105,6 +121,7 @@ let reminderController = null;
 let newsController = null;
 let translateController = null;
 let todoController;
+let desktopCareController = null;
 let settingsController = null;
 let chatController = null;
 
@@ -387,6 +404,46 @@ function openTodoList() {
 
 function closeTodoList() {
   todoController.closeTodoList();
+}
+
+desktopCareController = window.RobotDesktopCare.createDesktopCareController({
+  elements: {
+    desktopCare,
+    desktopCareClose,
+    desktopCareRefresh,
+    desktopCareStatus,
+    desktopCareSuggestions,
+    desktopCareCleanupSummary,
+    desktopCareCleanupList,
+    desktopCareStartupSummary,
+    desktopCareStartupList,
+    desktopCareRisk,
+    desktopCareCpu,
+    desktopCareMem,
+    desktopCareDisk,
+    desktopCareServices,
+    desktopCareCleanupSize
+  },
+  appendTextElement,
+  appendButton,
+  showSpeech,
+  setMouseCapture,
+  stopIdleAnimations,
+  resumeIdleAnimationsIfAllowed,
+  updateMouseCapture,
+  setDesktopCareOpen: (open) => {
+    isDesktopCareOpen = open;
+  },
+  openSystemMonitor,
+  openPortMonitor
+});
+
+function openDesktopCare() {
+  desktopCareController.openDesktopCare();
+}
+
+function closeDesktopCare() {
+  desktopCareController.closeDesktopCare();
 }
 
 // --- Chat ---
@@ -716,6 +773,7 @@ function isInteractionOverlayOpen() {
     isReminderOpen ||
     isNewsOpen ||
     isTodoOpen ||
+    isDesktopCareOpen ||
     isDblClickAnimating ||
     !snoozeBar.classList.contains('hidden') ||
     !speechBubble.classList.contains('hidden')
@@ -750,6 +808,7 @@ function handleRobotMouseMove(clientX, clientY) {
   const overReminderCenter = !!(el && el.closest('#reminder-center'));
   const overSettingsModal = !!(el && el.closest('#settings-modal'));
   const overTodoList = !!(el && el.closest('#todo-list'));
+  const overDesktopCare = !!(el && el.closest('#desktop-care'));
   const overSystemMonitor = !!(el && el.closest('#system-monitor'));
   const overPortMonitor = !!(el && el.closest('#port-monitor'));
   // Use bounding rect for speech bubble since it overflows the container (top: -50px)
@@ -773,6 +832,7 @@ function handleRobotMouseMove(clientX, clientY) {
       overReminderCenter ||
       overSettingsModal ||
       overTodoList ||
+      overDesktopCare ||
       overSystemMonitor ||
       overPortMonitor ||
       overSpeechBubble
@@ -811,6 +871,12 @@ window.electronAPI.onMenuAction((action) => {
       closeSystemMonitor();
     } else {
       openSystemMonitor();
+    }
+  } else if (action === 'desktop-care') {
+    if (isDesktopCareOpen) {
+      closeDesktopCare();
+    } else {
+      openDesktopCare();
     }
   } else if (action === 'port-monitor') {
     if (isMonitorOpen && !portMonitor.classList.contains('hidden')) {
@@ -858,6 +924,7 @@ portMonitorClose.addEventListener('click', closePortMonitor);
 portMonitor.querySelector('.monitor-backdrop').addEventListener('click', closePortMonitor);
 chatController.bindChatEvents();
 newsController.bindNewsEvents();
+desktopCareController.bindDesktopCareEvents();
 
 // --- Global key events ---
 window.addEventListener('keydown', (e) => {
@@ -871,6 +938,7 @@ window.addEventListener('keydown', (e) => {
     if (isReminderOpen) closeReminderCenter();
     if (isNewsOpen) closeNewsPanel();
     if (isTodoOpen) closeTodoList();
+    if (isDesktopCareOpen) closeDesktopCare();
   }
 });
 
@@ -890,7 +958,9 @@ function isUserInteracting() {
   return isDragging || isChatOpen || isThinking || isInteractionOverlayOpen();
 }
 
-const effectsController = window.RobotEffects.createEffectsController({
+let effectsController = null;
+
+effectsController = window.RobotEffects.createEffectsController({
   petEl,
   container,
   snoozeBar,
@@ -907,22 +977,28 @@ const effectsController = window.RobotEffects.createEffectsController({
 });
 
 function startIdleAnimations() {
+  if (!effectsController) return;
   return effectsController.startIdleAnimations();
 }
 
 function stopIdleAnimations() {
+  if (!effectsController) return;
   return effectsController.stopIdleAnimations();
 }
 
 function resumeIdleAnimationsIfAllowed() {
+  if (!effectsController) return;
   return effectsController.resumeIdleAnimationsIfAllowed();
 }
 
 function testIdleAnimation(kind) {
+  if (!effectsController) return;
   return effectsController.testIdleAnimation(kind);
 }
 
-effectsController.bindRobotClick();
+if (effectsController) {
+  effectsController.bindRobotClick();
+}
 
 // --- Init ---
 reminderController.init();

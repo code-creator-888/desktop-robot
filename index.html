@@ -189,6 +189,62 @@
       </div>
     </div>
 
+    <div id="desktop-care" class="hidden">
+      <div class="monitor-backdrop"></div>
+      <div class="monitor-card monitor-card-wide">
+        <div class="monitor-header">
+          <span>🛡️ 电脑管家</span>
+          <div class="monitor-header-right">
+            <button id="desktop-care-refresh" class="news-refresh-btn">刷新</button>
+            <button id="desktop-care-close">✕</button>
+          </div>
+        </div>
+        <div class="monitor-tabs">
+          <button class="monitor-tab active" data-tab="overview">概览</button>
+          <button class="monitor-tab" data-tab="cleanup">缓存清理</button>
+          <button class="monitor-tab" data-tab="startup">启动项</button>
+        </div>
+        <div class="monitor-tab-content active" id="desktop-care-tab-overview">
+          <div id="desktop-care-status" class="news-panel-status">正在检查电脑状态...</div>
+          <div class="desktop-care-stats">
+            <div class="desktop-care-stat-card">
+              <div class="desktop-care-stat-label">风险等级</div>
+              <div id="desktop-care-risk" class="desktop-care-stat-value">-</div>
+            </div>
+            <div class="desktop-care-stat-card">
+              <div class="desktop-care-stat-label">CPU</div>
+              <div id="desktop-care-cpu" class="desktop-care-stat-value">-</div>
+            </div>
+            <div class="desktop-care-stat-card">
+              <div class="desktop-care-stat-label">内存占用</div>
+              <div id="desktop-care-mem" class="desktop-care-stat-value">-</div>
+            </div>
+            <div class="desktop-care-stat-card">
+              <div class="desktop-care-stat-label">磁盘剩余</div>
+              <div id="desktop-care-disk" class="desktop-care-stat-value">-</div>
+            </div>
+            <div class="desktop-care-stat-card">
+              <div class="desktop-care-stat-label">监听服务</div>
+              <div id="desktop-care-services" class="desktop-care-stat-value">-</div>
+            </div>
+            <div class="desktop-care-stat-card">
+              <div class="desktop-care-stat-label">可清理缓存</div>
+              <div id="desktop-care-cleanup-size" class="desktop-care-stat-value">-</div>
+            </div>
+          </div>
+          <div id="desktop-care-suggestions" class="desktop-care-list"></div>
+        </div>
+        <div class="monitor-tab-content" id="desktop-care-tab-cleanup">
+          <div id="desktop-care-cleanup-summary" class="news-panel-status">正在扫描缓存目录...</div>
+          <div id="desktop-care-cleanup-list" class="desktop-care-list"></div>
+        </div>
+        <div class="monitor-tab-content" id="desktop-care-tab-startup">
+          <div id="desktop-care-startup-summary" class="news-panel-status">正在读取启动项...</div>
+          <div id="desktop-care-startup-list" class="desktop-care-list"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="reminder-center" class="hidden">
       <div class="monitor-backdrop"></div>
       <div class="monitor-card monitor-card-wide">
@@ -323,6 +379,7 @@
     <script src="renderer-translate.js"></script>
     <script src="renderer-effects.js"></script>
     <script src="renderer-todo.js"></script>
+    <script src="renderer-desktop-care.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>

@@ -53,6 +53,7 @@
       "renderer-translate.js",
       "renderer-effects.js",
       "renderer-todo.js",
+      "renderer-desktop-care.js",
       "renderer.js",
       "style.css",
       "package.json"

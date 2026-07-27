@@ -256,7 +256,8 @@ test('renderer feature modules are loaded before the main renderer', () => {
   assert.ok(html.indexOf('renderer-news.js') < html.indexOf('renderer-translate.js'));
   assert.ok(html.indexOf('renderer-translate.js') < html.indexOf('renderer-effects.js'));
   assert.ok(html.indexOf('renderer-effects.js') < html.indexOf('renderer-todo.js'));
-  assert.ok(html.indexOf('renderer-todo.js') < html.indexOf('renderer.js'));
+  assert.ok(html.indexOf('renderer-todo.js') < html.indexOf('renderer-desktop-care.js'));
+  assert.ok(html.indexOf('renderer-desktop-care.js') < html.indexOf('renderer.js'));
   assert.match(packageJson, /renderer-settings\.js/);
   assert.match(packageJson, /renderer-robot3d\.js/);
   assert.match(packageJson, /renderer-chat\.js/);
@@ -264,6 +265,7 @@ test('renderer feature modules are loaded before the main renderer', () => {
   assert.match(packageJson, /renderer-news\.js/);
   assert.match(packageJson, /renderer-translate\.js/);
   assert.match(packageJson, /renderer-effects\.js/);
+  assert.match(packageJson, /renderer-desktop-care\.js/);
 });
 
 test('settings chat and reminder modules own their event binding', () => {
@@ -286,6 +288,7 @@ test('settings chat and reminder modules own their event binding', () => {
   assert.match(renderer, /newsController\.bindNewsEvents\(\)/);
   assert.match(renderer, /translateController\.bindTranslateEvents\(\)/);
   assert.match(renderer, /effectsController\.bindRobotClick\(\)/);
+  assert.match(renderer, /if \(!effectsController\) return;/);
 });
 
 test('mousemove perspective work is throttled with requestAnimationFrame', () => {
@@ -373,4 +376,21 @@ test('direct main-process IPC only accepts the application renderer', () => {
     main,
     /ipcMain\.handle\('protect-secret', \(event, secret\) => \{\s*if \(!isTrustedIpcSender\(event\)\)/
   );
+});
+
+test('global right-click menu is deferred until after mouse release', () => {
+  const main = fs.readFileSync(mainPath, 'utf8');
+
+  assert.match(main, /function popupRobotMenuAtScreenPoint\(screenX, screenY\)/);
+  assert.match(main, /setTimeout\(async \(\) => \{/);
+  assert.match(main, /popupRobotMenuAtScreenPoint\(e\.x, e\.y\)/);
+});
+
+test('app prevents duplicate robot instances from competing for global input hooks', () => {
+  const main = fs.readFileSync(mainPath, 'utf8');
+
+  assert.match(main, /const hasSingleInstanceLock = app\.requestSingleInstanceLock\(\)/);
+  assert.match(main, /if \(!hasSingleInstanceLock\) \{\s*app\.quit\(\);/);
+  assert.match(main, /app\.on\('second-instance'/);
+  assert.match(main, /if \(!hasSingleInstanceLock\) return;/);
 });
