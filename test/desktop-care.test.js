@@ -61,6 +61,16 @@ test('renderer wires desktop care menu action and event binding', () => {
   assert.match(source, /isDesktopCareOpen/);
 });
 
+test('monitor panels opened from desktop care return to desktop care on close', () => {
+  const source = fs.readFileSync(rendererPath, 'utf8');
+  assert.match(source, /let returnToDesktopCareAfterMonitor = false/);
+  assert.match(source, /openSystemMonitor: openSystemMonitorFromDesktopCare/);
+  assert.match(source, /openPortMonitor: openPortMonitorFromDesktopCare/);
+  assert.match(source, /function openSystemMonitorFromDesktopCare\(\)/);
+  assert.match(source, /function openPortMonitorFromDesktopCare\(\)/);
+  assert.match(source, /returnToDesktopCareAfterMonitor = false;\s*openDesktopCare\(\);/);
+});
+
 test('preload exposes desktop care IPC bridge methods', () => {
   const source = fs.readFileSync(preloadPath, 'utf8');
   assert.match(source, /getDesktopCareSummary:\s*\(\) => ipcRenderer\.invoke\('get-desktop-care-summary'\)/);
@@ -77,7 +87,9 @@ test('preload exposes desktop care IPC bridge methods', () => {
 test('main process registers desktop care menu entry and module', () => {
   const source = fs.readFileSync(mainPath, 'utf8');
   assert.match(source, /createDesktopCare/);
-  assert.match(source, /电脑管家/);
+  assert.match(source, /label: '🛡️ 电脑管家'[\s\S]*submenu: \[/);
+  assert.match(source, /label: '📊 系统监控'[\s\S]*'system-monitor'/);
+  assert.match(source, /label: '🔌 端口监控'[\s\S]*'port-monitor'/);
   assert.match(source, /'desktop-care'/);
 });
 

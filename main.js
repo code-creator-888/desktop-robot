@@ -248,10 +248,15 @@ async function buildRobotMenuAsync() {
       ]
     },
     { type: 'separator' },
-    { label: '🛡️ 电脑管家', click: () => win && win.webContents.send('menu-action', 'desktop-care') },
+    {
+      label: '🛡️ 电脑管家',
+      submenu: [
+        { label: '🛡️ 概览', click: () => win && win.webContents.send('menu-action', 'desktop-care') },
+        { label: '📊 系统监控', click: () => win && win.webContents.send('menu-action', 'system-monitor') },
+        { label: '🔌 端口监控', click: () => win && win.webContents.send('menu-action', 'port-monitor') }
+      ]
+    },
     { label: '📰 热点新闻', click: () => win && win.webContents.send('menu-action', 'news-panel') },
-    { label: '📊 系统监控', click: () => win && win.webContents.send('menu-action', 'system-monitor') },
-    { label: '🔌 端口监控', click: () => win && win.webContents.send('menu-action', 'port-monitor') },
     { label: '⏰ 提醒中心', click: () => win && win.webContents.send('menu-action', 'reminder-center') },
     { label: '✅ 待办清单', click: () => win && win.webContents.send('menu-action', 'todo-list') },
     { label: '⚙️ 设置', click: () => win && win.webContents.send('menu-action', 'settings') },

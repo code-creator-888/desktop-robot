@@ -55,8 +55,10 @@ const settingSave = document.getElementById('setting-save');
 const settingCancel = document.getElementById('setting-cancel');
 const systemMonitor = document.getElementById('system-monitor');
 const systemMonitorClose = document.getElementById('system-monitor-close');
+const systemMonitorRefresh = document.getElementById('system-monitor-refresh');
 const portMonitor = document.getElementById('port-monitor');
 const portMonitorClose = document.getElementById('port-monitor-close');
+const portMonitorRefresh = document.getElementById('port-monitor-refresh');
 const desktopCare = document.getElementById('desktop-care');
 const desktopCareClose = document.getElementById('desktop-care-close');
 const desktopCareRefresh = document.getElementById('desktop-care-refresh');
@@ -110,6 +112,7 @@ let isNewsOpen = false;
 let isTodoOpen = false;
 let isDesktopCareOpen = false;
 let isDblClickAnimating = false;
+let returnToDesktopCareAfterMonitor = false;
 let systemMonitorInterval = null;
 let portMonitorInterval = null;
 let systemStatsInFlight = false;
@@ -434,8 +437,8 @@ desktopCareController = window.RobotDesktopCare.createDesktopCareController({
   setDesktopCareOpen: (open) => {
     isDesktopCareOpen = open;
   },
-  openSystemMonitor,
-  openPortMonitor
+  openSystemMonitor: openSystemMonitorFromDesktopCare,
+  openPortMonitor: openPortMonitorFromDesktopCare
 });
 
 function openDesktopCare() {
@@ -444,6 +447,16 @@ function openDesktopCare() {
 
 function closeDesktopCare() {
   desktopCareController.closeDesktopCare();
+}
+
+function openSystemMonitorFromDesktopCare() {
+  returnToDesktopCareAfterMonitor = true;
+  openSystemMonitor();
+}
+
+function openPortMonitorFromDesktopCare() {
+  returnToDesktopCareAfterMonitor = true;
+  openPortMonitor();
 }
 
 // --- Chat ---
@@ -498,15 +511,22 @@ function switchTab(panelEl, tabName) {
   });
 }
 
+function setMonitorRefreshButtonState(button, loading, showLoadingText = true) {
+  button.disabled = loading;
+  button.textContent = loading && showLoadingText ? '刷新中...' : '刷新';
+}
+
 // --- System Monitor ---
 async function refreshSystemStats() {
   if (systemStatsInFlight) return;
   systemStatsInFlight = true;
+  setMonitorRefreshButtonState(systemMonitorRefresh, true);
   let stats;
   try {
     stats = await window.electronAPI.getSystemStats();
   } finally {
     systemStatsInFlight = false;
+    setMonitorRefreshButtonState(systemMonitorRefresh, false);
   }
   if (!stats || stats.error) return;
 
@@ -557,6 +577,11 @@ function closeSystemMonitor() {
   if (portMonitor.classList.contains('hidden')) {
     isMonitorOpen = false;
   }
+  if (returnToDesktopCareAfterMonitor && portMonitor.classList.contains('hidden')) {
+    returnToDesktopCareAfterMonitor = false;
+    openDesktopCare();
+    return;
+  }
   resumeIdleAnimationsIfAllowed();
   updateMouseCapture();
 }
@@ -569,11 +594,13 @@ systemMonitor.querySelectorAll('.monitor-tab').forEach((btn) => {
 async function refreshPortStats() {
   if (portStatsInFlight) return;
   portStatsInFlight = true;
+  setMonitorRefreshButtonState(portMonitorRefresh, true, false);
   let data;
   try {
     data = await window.electronAPI.getPortStats();
   } finally {
     portStatsInFlight = false;
+    setMonitorRefreshButtonState(portMonitorRefresh, false);
   }
   if (!data || data.error) return;
   renderWatchedPorts(data, {
@@ -624,6 +651,11 @@ function closePortMonitor() {
   }
   if (systemMonitor.classList.contains('hidden')) {
     isMonitorOpen = false;
+  }
+  if (returnToDesktopCareAfterMonitor && systemMonitor.classList.contains('hidden')) {
+    returnToDesktopCareAfterMonitor = false;
+    openDesktopCare();
+    return;
   }
   resumeIdleAnimationsIfAllowed();
   updateMouseCapture();
@@ -919,8 +951,10 @@ window.electronAPI.onMenuAction((action) => {
 });
 
 systemMonitorClose.addEventListener('click', closeSystemMonitor);
+systemMonitorRefresh.addEventListener('click', refreshSystemStats);
 systemMonitor.querySelector('.monitor-backdrop').addEventListener('click', closeSystemMonitor);
 portMonitorClose.addEventListener('click', closePortMonitor);
+portMonitorRefresh.addEventListener('click', refreshPortStats);
 portMonitor.querySelector('.monitor-backdrop').addEventListener('click', closePortMonitor);
 chatController.bindChatEvents();
 newsController.bindNewsEvents();

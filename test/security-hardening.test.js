@@ -206,6 +206,18 @@ test('system monitor avoids shell pipelines and overlapping refreshes', () => {
   const portMonitor = fs.readFileSync(portMonitorPath, 'utf8');
   const renderer = fs.readFileSync(rendererPath, 'utf8');
   const monitor = fs.readFileSync(rendererMonitorPath, 'utf8');
+  const html = fs.readFileSync(indexPath, 'utf8');
+  assert.match(html, /id="system-monitor-refresh"/);
+  assert.match(renderer, /const systemMonitorRefresh = document\.getElementById\('system-monitor-refresh'\)/);
+  assert.match(renderer, /systemMonitorRefresh\.addEventListener\('click', refreshSystemStats\)/);
+  assert.match(html, /id="port-monitor-refresh"/);
+  assert.match(renderer, /const portMonitorRefresh = document\.getElementById\('port-monitor-refresh'\)/);
+  assert.match(renderer, /portMonitorRefresh\.addEventListener\('click', refreshPortStats\)/);
+  assert.match(renderer, /function setMonitorRefreshButtonState\(button, loading, showLoadingText = true\)/);
+  assert.match(renderer, /button\.disabled = loading/);
+  assert.match(renderer, /button\.textContent = loading && showLoadingText \? '刷新中\.\.\.' : '刷新'/);
+  assert.match(renderer, /setMonitorRefreshButtonState\(systemMonitorRefresh, true\)/);
+  assert.match(renderer, /setMonitorRefreshButtonState\(portMonitorRefresh, true, false\)/);
   assert.doesNotMatch(main, /execAsync/);
   assert.doesNotMatch(systemMonitor, /execAsync/);
   assert.doesNotMatch(portMonitor, /execAsync/);
