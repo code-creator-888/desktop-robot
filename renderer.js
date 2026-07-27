@@ -293,12 +293,26 @@ function switchModel(id) {
   return settingsController.switchModel(id);
 }
 
+function getEnvModelConfig() {
+  if (!envConfig.baseUrl || !envConfig.model || !envConfig.apiKey) return null;
+  return {
+    baseUrl: envConfig.baseUrl,
+    model: envConfig.model,
+    apiKey: envConfig.apiKey,
+    provider: envConfig.baseUrl.includes('anthropic') ? 'anthropic' : 'openai'
+  };
+}
+
 function getSettings() {
-  return settingsController.getSettings();
+  return settingsController.getSettings() || getEnvModelConfig();
 }
 
 function getTranslateModelConfig() {
-  return settingsController.getTranslateModelConfig();
+  const config = settingsController.getTranslateModelConfig();
+  if (config) return config;
+  const settings = parseSettingsSafe();
+  const mode = settings.translateModelMode === 'custom' ? 'custom' : 'same';
+  return mode === 'same' ? getEnvModelConfig() : null;
 }
 
 function openSettings() {

@@ -41,25 +41,43 @@ test('renderer supports translation model mode: same as chat or custom openai-co
   assert.match(settings, /const mode = settings\.translateModelMode === 'custom' \? 'custom' : 'same'/);
   assert.match(settings, /provider:\s*'openai'/);
   assert.match(renderer, /getTranslateModelConfig,/);
+  assert.match(renderer, /function getEnvModelConfig\(\)/);
+  assert.match(renderer, /return settingsController\.getSettings\(\) \|\| getEnvModelConfig\(\)/);
+  assert.match(renderer, /return mode === 'same' \? getEnvModelConfig\(\) : null/);
   assert.match(renderer, /translateController\.bindTranslateEvents\(\)/);
 });
 
 test('renderer enforces compact output format for english and chinese translation', () => {
   const source = fs.readFileSync(rendererTranslatePath, 'utf8');
-  assert.match(source, /如果是英文或其他外语，严格输出：英文原词：中文翻译/);
-  assert.match(source, /如果是中文，严格输出：中文词（带声调拼音）：中文解释/);
-  assert.match(source, /英文示例：min：最小/);
+  assert.match(source, /const isChineseInput = containsChinese\(text\)/);
+  assert.match(source, /请把以下英文或外语翻译成中文，并严格输出：英文原词：中文翻译/);
+  assert.match(source, /请严格输出：中文词（带声调拼音）：中文解释/);
+  assert.match(source, /英文示例：diff：差异/);
   assert.match(source, /中文示例：测试（cèshì）：用于验证功能是否正常/);
   assert.match(source, /function needsChineseExplainRepair\(/);
+  assert.match(source, /function needsEnglishTranslateRepair\(/);
+  assert.match(source, /Analyze the Request\|Role:\|Task:\|Constraints:\|Input text\|Output exactly one line/);
+  assert.match(source, /const TRANSLATION_FALLBACKS = \{/);
+  assert.match(source, /function getEnglishTranslateFallback\(/);
+  assert.match(source, /function formatTranslateError\(/);
+  assert.match(source, /diff：差异/);
+  assert.match(source, /normalizedLeft/);
+  assert.match(source, /\[A-Za-z0-9 _\.\/\(\)-\]/);
+  assert.match(source, /模型只返回了思考过程，未返回最终译文/);
+  assert.match(source, /模型返回为空/);
   assert.match(source, /function formatEnglishTranslationResult\(/);
   assert.match(source, /if\s*\(needsChineseExplainRepair\(text,\s*reply\)\)/);
-  assert.match(
-    source,
-    /if\s*\(!containsChinese\(text\)\)\s*\{\s*reply = formatEnglishTranslationResult\(text,\s*reply\);\s*\}/
-  );
+  assert.match(source, /if\s*\(needsEnglishTranslateRepair\(text,\s*reply\)\)/);
+  assert.match(source, /if\s*\(!containsChinese\(text\)\)\s*\{/);
+  assert.match(source, /reply = formatEnglishTranslationResult\(text,\s*reply\)/);
+  assert.match(source, /maxTokens:\s*1024/);
+  assert.match(source, /const fallbackReply = getEnglishTranslateFallback\(text\)/);
+  assert.match(source, /模型未返回中文译文/);
   assert.match(source, /tonePinyinPattern/);
   assert.match(source, /compactChinesePattern/);
   assert.match(source, /appendTranslateMessage\(reply\)/);
+  assert.match(source, /翻译失败：/);
+  assert.match(source, /翻译出错：/);
 });
 
 test('speech bubble wraps only when text exceeds threshold', () => {

@@ -20,7 +20,7 @@ const systemMonitorPath = path.join(__dirname, '..', 'lib', 'system-monitor.js')
 const webSearchIpcPath = path.join(__dirname, '..', 'lib', 'web-search-ipc.js');
 const indexPath = path.join(__dirname, '..', 'index.html');
 const packagePath = path.join(__dirname, '..', 'package.json');
-const { normalizeChatPayload } = require(chatIpcPath);
+const { describeEmptyOpenAIResponse, extractOpenAIMessageContent, normalizeChatPayload } = require(chatIpcPath);
 
 test('renderer does not inject dynamic templates with innerHTML', () => {
   const source = fs.readFileSync(rendererPath, 'utf8');
@@ -62,6 +62,8 @@ test('chat IPC validates base URL protocol and payload shape', () => {
   assert.doesNotMatch(source, /function isLocalDebugHttpHost\(hostname\)/);
   assert.match(source, /messages\s*\.\s*slice\(-30\)/);
   assert.match(source, /content: String\(message\?\.content \|\| ''\)\.slice\(0, 20000\)/);
+  assert.match(source, /maxTokens = Number\.isFinite\(requestedMaxTokens\)/);
+  assert.match(source, /max_tokens:\s*maxTokens/);
   assert.match(source, /requestId: String\(payload\.requestId \|\| ''\)\.slice\(0, 80\)/);
   assert.match(source, /const activeChatRequests = new Map\(\)/);
   assert.match(source, /ipcMain\.handle\('cancel-chat'/);
@@ -83,6 +85,32 @@ test('chat IPC allows HTTP and HTTPS model endpoints', () => {
     normalizeChatPayload({ ...basePayload, baseUrl: 'file:///tmp/model' }).error,
     'Unsupported base URL protocol'
   );
+  assert.equal(normalizeChatPayload({ ...basePayload, baseUrl: 'http://example.com/v1' }).maxTokens, 150);
+  assert.equal(
+    normalizeChatPayload({ ...basePayload, baseUrl: 'http://example.com/v1', maxTokens: 1024 }).maxTokens,
+    1024
+  );
+  assert.equal(
+    normalizeChatPayload({ ...basePayload, baseUrl: 'http://example.com/v1', maxTokens: 9000 }).maxTokens,
+    4096
+  );
+});
+
+test('chat IPC extracts OpenAI-compatible text variants', () => {
+  assert.equal(
+    extractOpenAIMessageContent({ choices: [{ message: { content: [{ text: 'diff：差异' }] } }] }),
+    'diff：差异'
+  );
+  assert.equal(
+    extractOpenAIMessageContent({ choices: [{ message: { reasoning_content: 'diff：差异', content: '' } }] }),
+    null
+  );
+  assert.equal(extractOpenAIMessageContent({ choices: [{ message: { content: '' } }] }), null);
+  assert.equal(
+    describeEmptyOpenAIResponse({ choices: [{ message: { reasoning_content: 'analysis', content: '' } }] }),
+    'Model returned reasoning only without final content'
+  );
+  assert.equal(describeEmptyOpenAIResponse({ choices: [{ message: { content: '' } }] }), 'Empty model response');
 });
 
 test('browser window uses hardened web preferences', () => {
