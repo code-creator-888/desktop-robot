@@ -41,6 +41,18 @@ test('renderer supports rule-based reminder scheduling', () => {
   assert.match(source, /item\.nextTriggerAt/);
 });
 
+test('renderer skips stale startup reminders and rolls recurring reminders forward', () => {
+  const source = fs.readFileSync(reminderModulePath, 'utf8');
+  assert.match(source, /function\s+skipPastDueRemindersOnInit\(\)/);
+  assert.match(source, /function\s+advanceRecurringReminderToFuture\(item,\s*nowTs,\s*fromTs\)/);
+  assert.match(source, /if\s*\(Number\.isNaN\(triggerTs\)\s*\|\|\s*triggerTs\s*>\s*now\)\s*continue;/);
+  assert.match(source, /if\s*\(\(item\.rule\?\.type\s*\|\|\s*'one-time'\)\s*===\s*'one-time'\)\s*\{\s*item\.status\s*=\s*'done';/);
+  assert.match(source, /item\.status\s*=\s*'done';\s*item\.alertPending\s*=\s*false;/);
+  assert.match(source, /advanceRecurringReminderToFuture\(item,\s*now,\s*triggerTs\)/);
+  assert.match(source, /\.filter\(\(item\)\s*=>\s*item\.alertPending\s*&&\s*item\.status\s*!==\s*'done'\)/);
+  assert.match(source, /skipPastDueRemindersOnInit\(\);\s*pendingAlertIds\s*=\s*\[\];/);
+});
+
 test('renderer has no snooze controls or snooze rule data', () => {
   const source = fs.readFileSync(rendererPath, 'utf8');
   assert.doesNotMatch(source, /snoozeOptions:\s*\[5,\s*10,\s*30\]/);

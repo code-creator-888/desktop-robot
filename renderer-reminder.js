@@ -374,6 +374,24 @@
       return false;
     }
 
+    function advanceRecurringReminderToFuture(item, nowTs, fromTs) {
+      let nextTriggerAt = computeNextTriggerAt(item, fromTs);
+      let changed = false;
+
+      while (nextTriggerAt) {
+        const nextTriggerTs = new Date(nextTriggerAt).getTime();
+        if (Number.isNaN(nextTriggerTs)) break;
+        item.nextTriggerAt = nextTriggerAt;
+        changed = true;
+        if (nextTriggerTs > nowTs) return changed;
+        nextTriggerAt = computeNextTriggerAt(item, nextTriggerTs);
+      }
+
+      item.status = 'done';
+      item.alertPending = false;
+      return true;
+    }
+
     function checkDueReminders() {
       const now = Date.now();
       let dirty = false;
@@ -385,14 +403,46 @@
         if (now - last < 5 * 60 * 1000) continue;
         item.lastNotifiedAt = now;
         triggerReminderAlert(item);
-        const nextTriggerAt = computeNextTriggerAt(item, triggerTs);
-        if (nextTriggerAt) item.nextTriggerAt = nextTriggerAt;
+        if ((item.rule?.type || 'one-time') !== 'one-time') {
+          advanceRecurringReminderToFuture(item, now, triggerTs);
+        }
         dirty = true;
       }
       if (dirty) {
         saveReminderItems();
         renderReminderList();
       }
+    }
+
+    function skipPastDueRemindersOnInit() {
+      const now = Date.now();
+      let dirty = false;
+
+      for (const item of reminderItems) {
+        if (item.status === 'done') continue;
+
+        const triggerTs = new Date(item.nextTriggerAt || item.dueAt).getTime();
+        if (Number.isNaN(triggerTs) || triggerTs > now) continue;
+
+        if ((item.rule?.type || 'one-time') === 'one-time') {
+          item.status = 'done';
+          item.alertPending = false;
+          dirty = true;
+          continue;
+        }
+
+        if (item.alertPending) {
+          item.alertPending = false;
+          dirty = true;
+        }
+        if (item.lastNotifiedAt !== 0) {
+          item.lastNotifiedAt = 0;
+          dirty = true;
+        }
+        if (advanceRecurringReminderToFuture(item, now, triggerTs)) dirty = true;
+      }
+
+      if (dirty) saveReminderItems();
     }
 
     function openReminderCenter() {
@@ -485,9 +535,10 @@
 
     function init() {
       reminderItems = loadReminderItems();
+      skipPastDueRemindersOnInit();
       pendingAlertIds = [];
       [...reminderItems]
-        .filter((item) => item.alertPending)
+        .filter((item) => item.alertPending && item.status !== 'done')
         .sort((a, b) => new Date(a.nextTriggerAt || a.dueAt).getTime() - new Date(b.nextTriggerAt || b.dueAt).getTime())
         .forEach(queueReminderAlert);
       checkDueReminders();
